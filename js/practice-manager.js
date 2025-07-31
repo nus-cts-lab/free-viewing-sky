@@ -4,9 +4,10 @@
  */
 
 class PracticeManager {
-    constructor(dataManager, imageManager) {
+    constructor(dataManager, imageManager, experimentSettings = null) {
         this.dataManager = dataManager;
         this.imageManager = imageManager;
+        this.experimentSettings = experimentSettings;
         
         this.practiceTrials = [];
         this.currentTrialIndex = 0;
@@ -255,8 +256,10 @@ class PracticeManager {
             console.error('Error starting practice tracking:', error);
         }
         
-        // Show countdown timer
-        this.showCountdown();
+        // Show countdown timer only if enabled
+        if (this.experimentSettings && this.experimentSettings.showPracticeTimer) {
+            this.showCountdown();
+        }
         
         // Wait for trial duration
         await this.delay(this.trialDuration);

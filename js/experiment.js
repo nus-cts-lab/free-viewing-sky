@@ -24,7 +24,10 @@ class ExperimentController {
             imageViewingTime: 15000, // 15 seconds automatic progression
             enableMouseTracking: true,
             enablePractice: true,
-            debug: false
+            debug: false,
+            showTimer: false, // Hide timer during main trials
+            showProgress: false, // Hide trial progress indicator
+            showPracticeTimer: false // Hide timer during practice trials
         };
         
         // State tracking
@@ -59,7 +62,7 @@ class ExperimentController {
         // Initialize managers
         this.imageManager = new ImageManager();
         this.dataManager = new DataManager();
-        this.practiceManager = new PracticeManager(this.dataManager, this.imageManager);
+        this.practiceManager = new PracticeManager(this.dataManager, this.imageManager, this.settings);
         
         console.log('All components initialized - MouseView.js will be activated during trials');
     }
@@ -329,19 +332,21 @@ class ExperimentController {
             practiceIndicator.style.display = 'none';
         }
         
-        // Ensure main progress indicator is visible for main experiment
+        // Handle main progress indicator based on settings
         const mainProgressIndicator = document.getElementById('progress-indicator');
         if (mainProgressIndicator) {
             mainProgressIndicator.classList.remove('hide-during-practice');
-            mainProgressIndicator.style.display = 'block';
-            mainProgressIndicator.style.visibility = 'visible';
-            mainProgressIndicator.style.opacity = '1';
-            mainProgressIndicator.style.zIndex = '200';
-            console.log('=== PROGRESS INDICATOR DEBUG ===');
-            console.log('Progress indicator made visible');
-            console.log('Current display:', mainProgressIndicator.style.display);
-            console.log('Current visibility:', mainProgressIndicator.style.visibility);
-            console.log('=== END PROGRESS DEBUG ===');
+            
+            if (this.settings.showProgress) {
+                mainProgressIndicator.style.display = 'block';
+                mainProgressIndicator.style.visibility = 'visible';
+                mainProgressIndicator.style.opacity = '1';
+                mainProgressIndicator.style.zIndex = '200';
+                console.log('Progress indicator made visible');
+            } else {
+                mainProgressIndicator.style.display = 'none';
+                console.log('Progress indicator hidden by settings');
+            }
         }
         
         // Configure MouseView for main experiment trials only
@@ -467,7 +472,9 @@ class ExperimentController {
         
         // Show countdown timer for timed trials
         if (this.settings.imageViewingTime > 0) {
-            this.showTrialCountdown();
+            if (this.settings.showTimer) {
+                this.showTrialCountdown();
+            }
             await this.delay(this.settings.imageViewingTime);
             this.hideTrialCountdown();
         } else {
@@ -550,7 +557,9 @@ class ExperimentController {
         
         // Wait for viewing time with countdown
         if (this.settings.imageViewingTime > 0) {
-            this.showTrialCountdown();
+            if (this.settings.showTimer) {
+                this.showTrialCountdown();
+            }
             await this.delay(this.settings.imageViewingTime);
             this.hideTrialCountdown();
         } else {
@@ -634,6 +643,12 @@ class ExperimentController {
     }
     
     updateProgress(current, total) {
+        // Early exit if progress should be hidden
+        if (!this.settings.showProgress) {
+            console.log('Progress indicator hidden by settings');
+            return;
+        }
+        
         console.log('=== UPDATE PROGRESS DEBUG ===');
         console.log('Called with current:', current, 'total:', total);
         
