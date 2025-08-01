@@ -472,6 +472,55 @@ input[type="text"]:focus {
     }
 }
 
+/* Center Button Styles */
+.center-button {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    z-index: 400; /* Higher than MouseView overlay */
+}
+
+.start-button, .next-button {
+    font-size: 2em;
+    padding: 20px 40px;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-weight: bold;
+    margin-bottom: 10px;
+    min-width: 150px;
+}
+
+.start-button {
+    background-color: #4CAF50;
+    color: white;
+}
+
+.start-button:hover {
+    background-color: #45a049;
+    transform: translateY(-2px);
+}
+
+.next-button {
+    background-color: #2196F3;
+    color: white;
+}
+
+.next-button:hover {
+    background-color: #1976D2;
+    transform: translateY(-2px);
+}
+
+.button-instruction {
+    font-size: 1em;
+    color: #ddd;
+    margin-top: 10px;
+    font-style: italic;
+}
+
 /* Hide cursor during experiment trials */
 body.experiment-active {
     cursor: none;
@@ -479,4 +528,13 @@ body.experiment-active {
 
 body.experiment-active * {
     cursor: none !important;
+}
+
+/* But show cursor on center buttons */
+body.experiment-active .center-button {
+    cursor: pointer !important;
+}
+
+body.experiment-active .center-button * {
+    cursor: pointer !important;
 }

@@ -27,7 +27,8 @@ class ExperimentController {
             debug: false,
             showTimer: false, // Hide timer during main trials
             showProgress: false, // Hide trial progress indicator
-            showPracticeTimer: false // Hide timer during practice trials
+            showPracticeTimer: false, // Hide timer during practice trials
+            apertureSize: '20%' // Aperture size for mouse spotlight (increased from 12%)
         };
         
         // State tracking
@@ -349,11 +350,10 @@ class ExperimentController {
             }
         }
         
-        // Configure MouseView for main experiment trials only
-        this.configureMouseView();
+        // Configure MouseView for main experiment trials only and wait for it to be ready
+        await this.configureMouseView();
         
-        // Hide cursor
-        document.body.classList.add('experiment-active');
+        // Note: Cursor remains visible during trials to work with MouseView spotlight
         
         // Start first trial
         console.log('About to start first trial...');
@@ -381,9 +381,14 @@ class ExperimentController {
         this.updateProgress(this.globalTrialNumber, totalTrials);
         
         try {
-            // Show fixation cross for ALL trials
-            console.log('Showing fixation cross...');
-            await this.showFixation();
+            // Show center button (start for first trial, next for others)
+            if (this.globalTrialNumber === 1) {
+                console.log('Showing main start button for first trial...');
+                await this.showMainStartButton();
+            } else {
+                console.log('Showing next trial button...');
+                await this.showNextTrialButton();
+            }
             
             // Check if this position is a filler trial or image trial
             const isFillerTrial = this.imageManager.fillerPattern[this.globalTrialNumber - 1];
@@ -422,6 +427,74 @@ class ExperimentController {
         }
     }
     
+    async showMainStartButton() {
+        const mainStartButton = document.getElementById('main-start-button');
+        const imageContainer = document.getElementById('image-container');
+        
+        // Hide images
+        this.imageManager.hideImages(imageContainer);
+        
+        // Disable MouseView during button display
+        try {
+            if (typeof mouseview !== 'undefined' && mouseview.removeAll) {
+                mouseview.removeAll();
+            }
+        } catch (error) {
+            console.log('MouseView removeAll skipped during main start button');
+        }
+        
+        // Show main start button and wait for click
+        if (mainStartButton) {
+            mainStartButton.style.display = 'block';
+            
+            return new Promise((resolve) => {
+                const startButton = mainStartButton.querySelector('.start-button');
+                
+                const handleClick = () => {
+                    mainStartButton.style.display = 'none';
+                    startButton.removeEventListener('click', handleClick);
+                    resolve();
+                };
+                
+                startButton.addEventListener('click', handleClick);
+            });
+        }
+    }
+
+    async showNextTrialButton() {
+        const nextTrialButton = document.getElementById('next-trial-button');
+        const imageContainer = document.getElementById('image-container');
+        
+        // Hide images
+        this.imageManager.hideImages(imageContainer);
+        
+        // Disable MouseView during button display
+        try {
+            if (typeof mouseview !== 'undefined' && mouseview.removeAll) {
+                mouseview.removeAll();
+            }
+        } catch (error) {
+            console.log('MouseView removeAll skipped during next trial button');
+        }
+        
+        // Show next trial button and wait for click
+        if (nextTrialButton) {
+            nextTrialButton.style.display = 'block';
+            
+            return new Promise((resolve) => {
+                const nextButton = nextTrialButton.querySelector('.next-button');
+                
+                const handleClick = () => {
+                    nextTrialButton.style.display = 'none';
+                    nextButton.removeEventListener('click', handleClick);
+                    resolve();
+                };
+                
+                nextButton.addEventListener('click', handleClick);
+            });
+        }
+    }
+
     async showFixation() {
         const fixationCross = document.getElementById('fixation-cross');
         const imageContainer = document.getElementById('image-container');
@@ -535,9 +608,6 @@ class ExperimentController {
         
         // Brief delay before filler
         await this.delay(500);
-        
-        // Show fixation again
-        await this.showFixation();
         
         // Configure MouseView for filler trial (same as main trials)
         this.configureMouseView();
@@ -692,8 +762,8 @@ class ExperimentController {
             console.log('MouseView removeAll skipped during finish (error):', error.message);
         }
         
-        // Restore cursor
-        document.body.classList.remove('experiment-active');
+        // Clean up experiment state (cursor was never hidden)
+        // document.body.classList.remove('experiment-active'); // Not needed anymore
         
         // Show end screen
         this.showScreen('end');
@@ -720,8 +790,8 @@ class ExperimentController {
         // Clear data
         this.dataManager.clearData();
         
-        // Reset UI
-        document.body.classList.remove('experiment-active');
+        // Reset UI (cursor was never hidden)
+        // document.body.classList.remove('experiment-active'); // Not needed anymore
         try {
             if (typeof mouseview !== 'undefined' && mouseview.removeAll) {
                 mouseview.removeAll();
@@ -782,7 +852,7 @@ class ExperimentController {
         } catch (error) {
             console.log('MouseView removeAll skipped during emergency exit (error):', error.message);
         }
-        document.body.classList.remove('experiment-active');
+        // document.body.classList.remove('experiment-active'); // Not needed anymore
         
         // Clean up any running timers
         this.hideTrialCountdown();
@@ -931,7 +1001,7 @@ class ExperimentController {
     }
 
     // Configure MouseView ONLY for image viewing trials
-    configureMouseView() {
+    async configureMouseView() {
         console.log('=== MAIN CONFIGURE MOUSEVIEW CALLED ===');
         try {
             console.log('MouseView available?', typeof mouseview !== 'undefined');
@@ -939,8 +1009,8 @@ class ExperimentController {
                 console.log('MouseView object before config:', mouseview);
                 console.log('Current params before config:', mouseview.params);
                 
-                console.log('Setting aperture to 12%...');
-                mouseview.params.apertureSize = '12%'; // Consistent spotlight size for all trials
+                console.log(`Setting aperture to ${this.settings.apertureSize}...`);
+                mouseview.params.apertureSize = this.settings.apertureSize; // Configurable spotlight size
                 mouseview.params.overlayAlpha = 0.85; // Consistent opacity for all trials
                 mouseview.params.overlayColour = 'black'; // Consistent color for all trials
                 mouseview.params.apertureGauss = 15; // Consistent edge smoothing for all trials
@@ -949,23 +1019,11 @@ class ExperimentController {
                 console.log('Calling mouseview.init()...');
                 mouseview.init();
                 console.log('Params after init():', mouseview.params);
-                console.log('MouseView configured for trial');
                 
-                // Additional debugging - check actual DOM elements
-                setTimeout(() => {
-                    const overlay = document.querySelector('#mouseview-overlay');
-                    const aperture = document.querySelector('#mouseview-aperture');
-                    console.log('=== MAIN DOM DEBUG ===');
-                    console.log('Overlay element:', overlay);
-                    console.log('Aperture element:', aperture);
-                    if (overlay) {
-                        console.log('Overlay style:', overlay.style.cssText);
-                    }
-                    if (aperture) {
-                        console.log('Aperture style:', aperture.style.cssText);
-                    }
-                    console.log('=== END MAIN DOM DEBUG ===');
-                }, 100);
+                // Wait for MouseView overlay to be ready before continuing
+                await this.waitForMouseViewReady();
+                
+                console.log('MouseView configured and ready for trial');
                 
                 console.log('=== MAIN TRIAL MOUSEVIEW DEBUG ===');
                 console.log('Main trial aperture size:', mouseview.params.apertureSize);
@@ -979,6 +1037,31 @@ class ExperimentController {
             console.error('Error stack:', error.stack);
         }
         console.log('=== END MAIN CONFIGURE MOUSEVIEW ===');
+    }
+
+    // Wait for MouseView overlay to be ready and visible
+    async waitForMouseViewReady() {
+        return new Promise((resolve) => {
+            const checkOverlay = () => {
+                const overlay = document.querySelector('#mouseview-overlay') || 
+                               document.querySelector('.mouseview-overlay');
+                
+                console.log('Checking MouseView overlay readiness...');
+                
+                if (overlay) {
+                    console.log('Overlay found:', overlay);
+                    console.log('Overlay style:', overlay.style.cssText);
+                    console.log('Overlay opacity:', overlay.style.opacity);
+                    
+                    // Consider overlay ready if it exists and has been initialized
+                    resolve();
+                } else {
+                    console.log('Overlay not ready, checking again in 50ms...');
+                    setTimeout(checkOverlay, 50);
+                }
+            };
+            checkOverlay();
+        });
     }
 
 

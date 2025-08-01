@@ -158,8 +158,8 @@ class PracticeManager {
         this.updateProgress();
         
         try {
-            // Show fixation cross
-            await this.showFixation();
+            // Show center start button for practice trial
+            await this.showPracticeStartButton();
             
             // Show images with mouse spotlight
             await this.showPracticeImages(trial);
@@ -205,6 +205,46 @@ class PracticeManager {
         }
     }
     
+    async showPracticeStartButton() {
+        // Get experiment screen elements
+        const experimentScreen = document.getElementById('experiment-screen');
+        const practiceStartButton = document.getElementById('practice-start-button');
+        const imageContainer = document.getElementById('image-container');
+        
+        // Show experiment screen
+        document.querySelectorAll('.screen').forEach(screen => screen.classList.remove('active'));
+        experimentScreen.classList.add('active');
+        
+        // Hide images
+        this.imageManager.hideImages(imageContainer);
+        
+        // Disable MouseView during button display
+        try {
+            if (typeof mouseview !== 'undefined' && mouseview.removeAll) {
+                mouseview.removeAll();
+            }
+        } catch (error) {
+            console.log('MouseView removeAll skipped during practice start button');
+        }
+        
+        // Show practice start button and wait for click
+        if (practiceStartButton) {
+            practiceStartButton.style.display = 'block';
+            
+            return new Promise((resolve) => {
+                const startButton = practiceStartButton.querySelector('.start-button');
+                
+                const handleClick = () => {
+                    practiceStartButton.style.display = 'none';
+                    startButton.removeEventListener('click', handleClick);
+                    resolve();
+                };
+                
+                startButton.addEventListener('click', handleClick);
+            });
+        }
+    }
+
     async showFixation() {
         // Get experiment screen elements (we'll reuse them)
         const experimentScreen = document.getElementById('experiment-screen');
@@ -495,8 +535,9 @@ class PracticeManager {
                 console.log('MouseView object before config:', mouseview);
                 console.log('Current params before config:', mouseview.params);
                 
-                console.log('Setting aperture to 12%...');
-                mouseview.params.apertureSize = '12%'; // Consistent spotlight size for all trials
+                const apertureSize = this.experimentSettings?.apertureSize || '20%';
+                console.log(`Setting aperture to ${apertureSize}...`);
+                mouseview.params.apertureSize = apertureSize; // Use experiment settings or default to 20%
                 mouseview.params.overlayAlpha = 0.85; // Consistent opacity for all trials
                 mouseview.params.overlayColour = 'black'; // Consistent color for all trials
                 mouseview.params.apertureGauss = 15; // Consistent edge smoothing for all trials
