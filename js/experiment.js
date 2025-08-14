@@ -6,27 +6,43 @@
 class ExperimentController {
     constructor() {
         this.currentState = 'welcome';
+        
+        // 3-Round System State
+        this.totalRounds = 3;
+        this.currentRound = 1;
+        this.trialsPerRound = 20;
+        this.imageTrialsPerRound = 12;
+        this.fillerTrialsPerRound = 8;
+        
+        // Trial Counters
+        this.roundTrialCounter = 0;     // 1-20 within current round
+        this.globalTrialCounter = 0;    // 1-60 overall
+        this.usedImages = new Set();     // Global image uniqueness tracking
+        
+        // Timing
+        this.roundStartTime = null;
+        
+        // Legacy counters (to be removed eventually)
         this.currentTrial = 0;
         this.maxTrials = 12;
         this.fillerTrialCounter = 0;
-        this.globalTrialNumber = 0; // Tracks total trial number including fillers
-        this.imageTrialCounter = 0; // Tracks image trials separately
+        this.globalTrialNumber = 0;
+        this.imageTrialCounter = 0;
         
         // Initialize components
         this.mouseView = null;
         this.imageManager = null;
         this.dataManager = null;
-        this.practiceManager = null;
         
         // Experiment settings
         this.settings = {
             fixationDuration: 2000, // ms (2 seconds)
             imageViewingTime: 15000, // 15 seconds automatic progression
             enableMouseTracking: true,
-            enablePractice: true,
+            enablePractice: false,  // DISABLED - No practice round
             debug: false,
             showTimer: false, // Hide timer during main trials
-            showProgress: false, // Hide trial progress indicator
+            showProgress: true, // Show progress for rounds
             showPracticeTimer: false, // Hide timer during practice trials
             apertureSize: '20%' // Aperture size for mouse spotlight (increased from 12%)
         };
@@ -59,13 +75,12 @@ class ExperimentController {
     }
     
     initializeComponents() {
-
-        // Initialize managers
+        // Initialize managers (removed practice manager)
         this.imageManager = new ImageManager();
         this.dataManager = new DataManager();
-        this.practiceManager = new PracticeManager(this.dataManager, this.imageManager, this.settings);
         
         console.log('All components initialized - MouseView.js will be activated during trials');
+        console.log('3-Round System: Practice disabled, direct to experiment');
     }
     
     bindEvents() {
@@ -84,11 +99,6 @@ class ExperimentController {
             participantForm.addEventListener('submit', (e) => this.handleParticipantForm(e));
         }
         
-        // Skip practice button
-        const skipPracticeBtn = document.getElementById('skip-practice');
-        if (skipPracticeBtn) {
-            skipPracticeBtn.addEventListener('click', () => this.skipPractice());
-        }
         
         // Continue trial button
         const continueTrialBtn = document.getElementById('continue-trial');
@@ -115,13 +125,19 @@ class ExperimentController {
             restartBtn.addEventListener('click', () => this.restartExperiment());
         }
         
-        // Transition screen button
-        const startMainBtn = document.getElementById('start-main-experiment');
-        if (startMainBtn) {
-            startMainBtn.addEventListener('click', () => this.startMainExperiment());
+        
+        // Inter-round progression buttons
+        const proceedRound2Btn = document.getElementById('proceed-round2');
+        const proceedRound3Btn = document.getElementById('proceed-round3');
+        
+        if (proceedRound2Btn) {
+            proceedRound2Btn.addEventListener('click', () => this.proceedToNextRound());
+        }
+        if (proceedRound3Btn) {
+            proceedRound3Btn.addEventListener('click', () => this.proceedToNextRound());
         }
         
-        console.log('Event listeners bound');
+        console.log('Event listeners bound (including inter-round buttons)');
     }
     
     async handleStartExperiment() {
@@ -157,16 +173,13 @@ class ExperimentController {
                 throw new Error('Failed to load experiment configuration');
             }
             
-            // Update settings from config
-            if (this.imageManager.config && this.imageManager.config.config) {
-                this.settings.imageViewingTime = this.imageManager.config.config.imageViewingTime;
-                this.settings.fixationDuration = this.imageManager.config.config.fixationDuration;
-                this.maxTrials = this.imageManager.config.config.numImageTrials || 12;
-                console.log('Updated experiment settings from config:');
-                console.log('- Image viewing time:', this.settings.imageViewingTime, 'ms');
-                console.log('- Fixation duration:', this.settings.fixationDuration, 'ms');
-                console.log('- Max trials:', this.maxTrials);
-            }
+            // Settings are now hardcoded in constructor for 3-round system
+            // No config-based settings update needed with new-data.json structure
+            console.log('3-Round experiment settings:');
+            console.log('- Image viewing time:', this.settings.imageViewingTime, 'ms');
+            console.log('- Fixation duration:', this.settings.fixationDuration, 'ms');
+            console.log('- Rounds:', this.totalRounds);
+            console.log('- Trials per round:', this.trialsPerRound);
             
             // Preload images
             this.updateLoadingMessage('Loading images...');
@@ -184,13 +197,9 @@ class ExperimentController {
             this.updateLoadingMessage('Ready!');
             await this.delay(500); // Give loading screen time to show "Ready!" 
             
-            // Start practice trials or experiment
-            console.log('Config loaded, starting practice...');
-            if (this.settings.enablePractice) {
-                await this.startPractice();
-            } else {
-                await this.startExperiment();
-            }
+            // Start 3-round experiment system
+            console.log('Config loaded, starting 3-round experiment...');
+            await this.startRound(1);
             
         } catch (error) {
             console.error('Error during loading:', error);
@@ -205,227 +214,7 @@ class ExperimentController {
         }
     }
     
-    async startPractice() {
-        console.log('Starting practice phase...');
-        // Skip practice instructions screen - go directly to experiment screen for practice trial
-        this.showScreen('experiment');
-        
-        // Force hide main progress indicator using CSS class
-        const mainProgressIndicator = document.getElementById('progress-indicator');
-        if (mainProgressIndicator) {
-            mainProgressIndicator.classList.add('hide-during-practice');
-        }
-        
-        // Wait a moment to ensure DOM is ready
-        await this.delay(50);
-        
-        const practiceIndicator = document.getElementById('practice-indicator');
-        if (practiceIndicator) {
-            practiceIndicator.textContent = 'Practice Round';
-            practiceIndicator.style.display = 'block';
-            practiceIndicator.style.visibility = 'visible';
-            practiceIndicator.style.zIndex = '1000';
-            practiceIndicator.style.position = 'absolute';
-            practiceIndicator.style.top = '20px';
-            practiceIndicator.style.right = '20px';
-            practiceIndicator.style.background = 'rgba(255, 165, 0, 0.9)';
-            practiceIndicator.style.color = 'white';
-            practiceIndicator.style.padding = '10px 15px';
-            practiceIndicator.style.borderRadius = '5px';
-            practiceIndicator.style.fontWeight = 'bold';
-            practiceIndicator.style.opacity = '1';
-        }
-        
-        try {
-            await this.practiceManager.startPractice(
-                (current, total) => {
-                    console.log(`Practice progress: ${current}/${total}`);
-                },
-                (results) => {
-                    console.log('Practice completed, showing transition screen:', results);
-                    setTimeout(() => {
-                        this.showTransitionScreen();
-                    }, 500);
-                }
-            );
-            console.log('Practice manager started successfully');
-        } catch (error) {
-            console.error('Practice error:', error);
-            this.showError('Practice failed. Starting experiment without practice.');
-            setTimeout(() => {
-                this.startExperiment();
-            }, 1000);
-        }
-    }
     
-    skipPractice() {
-        this.practiceManager.skipPractice();
-        this.showTransitionScreen();
-    }
-    
-    showTransitionScreen() {
-        console.log('Showing transition screen...');
-        
-        // Hide practice indicator since practice is complete
-        const practiceIndicator = document.getElementById('practice-indicator');
-        if (practiceIndicator) {
-            practiceIndicator.style.display = 'none';
-        }
-        
-        // Hide main progress indicator during transition
-        const mainProgressIndicator = document.getElementById('progress-indicator');
-        if (mainProgressIndicator) {
-            mainProgressIndicator.style.display = 'none';
-        }
-        
-        // Ensure MouseView is deactivated for transition screen
-        try {
-            if (typeof mouseview !== 'undefined' && mouseview.removeAll) {
-                mouseview.removeAll();
-            }
-        } catch (error) {
-            console.log('MouseView removeAll skipped during transition (error):', error.message);
-        }
-        
-        this.showScreen('transition');
-    }
-    
-    async startMainExperiment() {
-        console.log('Starting main experiment from transition screen...');
-        
-        // Ensure clean state before starting main experiment
-        this.currentTrial = 0;
-        this.fillerTrialCounter = 0;
-        this.globalTrialNumber = 0;
-        this.imageTrialCounter = 0;
-        this.isExperimentRunning = false; // Will be set to true in startExperiment()
-        
-        // Small delay to ensure transition screen is fully processed
-        await this.delay(100);
-        
-        this.startExperiment();
-    }
-    
-    async startExperiment() {
-        console.log('Starting main experiment...');
-        this.experimentStarted = true;
-        this.isExperimentRunning = true;
-        this.currentTrial = 0;
-        this.fillerTrialCounter = 0;
-        this.globalTrialNumber = 0;
-        this.imageTrialCounter = 0;
-        
-        // Debug: Check if image manager is ready
-        console.log('Image manager ready:', !!this.imageManager);
-        console.log('Config loaded:', !!this.imageManager.config);
-        console.log('Image trials:', this.imageManager.imageTrials ? this.imageManager.imageTrials.length : 'none');
-        console.log('Max trials:', this.maxTrials);
-        
-        // Initialize experiment data collection
-        this.dataManager.startExperiment();
-        
-        // Show experiment screen
-        this.showScreen('experiment');
-        
-        // Hide practice indicator (if visible) and ensure main progress indicator is visible
-        const practiceIndicator = document.getElementById('practice-indicator');
-        if (practiceIndicator) {
-            practiceIndicator.style.display = 'none';
-        }
-        
-        // Handle main progress indicator based on settings
-        const mainProgressIndicator = document.getElementById('progress-indicator');
-        if (mainProgressIndicator) {
-            mainProgressIndicator.classList.remove('hide-during-practice');
-            
-            if (this.settings.showProgress) {
-                mainProgressIndicator.style.display = 'block';
-                mainProgressIndicator.style.visibility = 'visible';
-                mainProgressIndicator.style.opacity = '1';
-                mainProgressIndicator.style.zIndex = '200';
-                console.log('Progress indicator made visible');
-            } else {
-                mainProgressIndicator.style.display = 'none';
-                console.log('Progress indicator hidden by settings');
-            }
-        }
-        
-        // Configure MouseView for main experiment trials only and wait for it to be ready
-        await this.configureMouseView();
-        
-        // Note: Cursor remains visible during trials to work with MouseView spotlight
-        
-        // Start first trial
-        console.log('About to start first trial...');
-        await this.runTrial();
-        
-        console.log('Experiment started');
-    }
-    
-    async runTrial() {
-        // Calculate total trials (20 = 12 image + 8 filler)
-        const totalTrials = this.imageManager.fillerPattern.length;
-        
-        console.log(`Running trial ${this.globalTrialNumber + 1} of ${totalTrials}`);
-        
-        if (this.globalTrialNumber >= totalTrials) {
-            console.log('All trials completed, finishing experiment');
-            await this.finishExperiment();
-            return;
-        }
-        
-        // Increment global trial number
-        this.globalTrialNumber++;
-        
-        // Update progress indicator with total trials
-        this.updateProgress(this.globalTrialNumber, totalTrials);
-        
-        try {
-            // Show center button (start for first trial, next for others)
-            if (this.globalTrialNumber === 1) {
-                console.log('Showing main start button for first trial...');
-                await this.showMainStartButton();
-            } else {
-                console.log('Showing next trial button...');
-                await this.showNextTrialButton();
-            }
-            
-            // Check if this position is a filler trial or image trial
-            const isFillerTrial = this.imageManager.fillerPattern[this.globalTrialNumber - 1];
-            
-            console.log(`=== TRIAL ${this.globalTrialNumber} LOGIC DEBUG ===`);
-            console.log('globalTrialNumber:', this.globalTrialNumber);
-            console.log('Pattern index:', this.globalTrialNumber - 1);
-            console.log('fillerPattern[index]:', isFillerTrial);
-            console.log('imageTrialCounter:', this.imageTrialCounter);
-            console.log('fillerTrialCounter:', this.fillerTrialCounter);
-            console.log('Full filler pattern:', this.imageManager.fillerPattern);
-            console.log('=== END TRIAL LOGIC DEBUG ===');
-            
-            if (isFillerTrial) {
-                console.log('Showing filler trial...');
-                await this.showFillerTrial();
-            } else {
-                console.log('Showing image trial...');
-                await this.showImageTrial();
-            }
-            
-            // Brief inter-trial interval
-            await this.delay(250);
-            
-            // Continue to next trial
-            if (this.isExperimentRunning) {
-                await this.runTrial();
-            }
-            
-        } catch (error) {
-            console.error('Error during trial:', error);
-            this.showError('An error occurred during the trial. Continuing to next trial.');
-            if (this.isExperimentRunning) {
-                await this.runTrial();
-            }
-        }
-    }
     
     async showMainStartButton() {
         const mainStartButton = document.getElementById('main-start-button');
@@ -519,164 +308,6 @@ class ExperimentController {
         fixationCross.classList.remove('active');
     }
     
-    async showImageTrial() {
-        const trialInfo = this.dataManager.startTrial(this.globalTrialNumber - 1, 'image');
-        const imageData = this.imageManager.getTrialImages(this.imageTrialCounter);
-        const imageContainer = document.getElementById('image-container');
-        
-        // Increment image trial counter
-        this.imageTrialCounter++;
-        
-        // Configure MouseView for this trial
-        this.configureMouseView();
-        
-        // Start mouse tracking
-        try {
-            if (typeof mouseview !== 'undefined') {
-                mouseview.startTracking();
-                console.log(`Mouse tracking started for trial ${this.currentTrial + 1}`);
-            }
-        } catch (error) {
-            console.error('Error starting image trial:', error);
-        }
-        
-        // Display images
-        this.imageManager.displayImages(imageData, imageContainer);
-        
-        // Show countdown timer for timed trials
-        if (this.settings.imageViewingTime > 0) {
-            if (this.settings.showTimer) {
-                this.showTrialCountdown();
-            }
-            await this.delay(this.settings.imageViewingTime);
-            this.hideTrialCountdown();
-        } else {
-            // Show continue button and wait for user
-            await this.waitForUserProgression();
-        }
-        
-        // Stop tracking and collect data
-        let mouseData = [];
-        try {
-            if (typeof mouseview !== 'undefined') {
-                // Stop tracking first
-                mouseview.stopTracking();
-                
-                // Get data using direct access (more reliable than getData() which has JSON parsing issues)
-                mouseData = mouseview.datalogger?.data || [];
-                
-                // Clear data for next trial (to avoid accumulation)
-                if (mouseview.datalogger) {
-                    mouseview.datalogger.data = [];
-                }
-                
-                console.log('Mouse tracking stopped, data collected');
-                console.log('=== IMAGE TRIAL MOUSE DATA DEBUG ===');
-                console.log('MouseData length:', mouseData.length);
-                console.log('MouseData sample (first 3 points):', mouseData.slice(0, 3));
-                console.log('=== END MOUSE DATA DEBUG ===');
-            }
-        } catch (error) {
-            console.error('Error stopping mouse tracking:', error);
-        }
-        
-        // Record trial data
-        this.dataManager.recordTrialData(trialInfo, imageData, mouseData);
-        this.dataManager.recordMouseData(mouseData, this.globalTrialNumber - 1, 'image');
-        
-        // Debug: Verify trial indexing
-        console.log(`=== IMAGE TRIAL RECORDING DEBUG ===`);
-        console.log('Global trial number:', this.globalTrialNumber);
-        console.log('Image trial counter:', this.imageTrialCounter);
-        console.log('Trial index used for data recording:', this.globalTrialNumber - 1);
-        console.log('=== END IMAGE TRIAL RECORDING DEBUG ===');
-        
-        // Hide images
-        this.imageManager.hideImages(imageContainer);
-        
-        console.log(`Image trial ${this.imageTrialCounter} completed`);
-    }
-    
-    async showFillerTrial() {
-        const fillerIndex = this.fillerTrialCounter % this.imageManager.neutralFillers.length;
-        const trialInfo = this.dataManager.startTrial(this.globalTrialNumber - 1, 'filler');
-        const fillerData = this.imageManager.getFillerImages(fillerIndex);
-        const imageContainer = document.getElementById('image-container');
-        
-        // Increment filler trial counter
-        this.fillerTrialCounter++;
-        
-        // Brief delay before filler
-        await this.delay(500);
-        
-        // Configure MouseView for filler trial (same as main trials)
-        this.configureMouseView();
-        
-        // Start mouse tracking for filler
-        try {
-            if (typeof mouseview !== 'undefined') {
-                mouseview.startTracking();
-                console.log(`Mouse tracking started for filler ${this.fillerTrialCounter + 1}`);
-            }
-        } catch (error) {
-            console.error('Error starting filler tracking:', error);
-        }
-        
-        // Display filler images
-        this.imageManager.displayImages(fillerData, imageContainer);
-        
-        // Wait for viewing time with countdown
-        if (this.settings.imageViewingTime > 0) {
-            if (this.settings.showTimer) {
-                this.showTrialCountdown();
-            }
-            await this.delay(this.settings.imageViewingTime);
-            this.hideTrialCountdown();
-        } else {
-            await this.waitForUserProgression();
-        }
-        
-        // Stop tracking and collect data
-        let mouseData = [];
-        try {
-            if (typeof mouseview !== 'undefined') {
-                // Stop tracking first
-                mouseview.stopTracking();
-                
-                // Get data using direct access (more reliable than getData() which has JSON parsing issues)
-                mouseData = mouseview.datalogger?.data || [];
-                
-                // Clear data for next trial (to avoid accumulation)
-                if (mouseview.datalogger) {
-                    mouseview.datalogger.data = [];
-                }
-                
-                console.log('Filler mouse tracking stopped, data collected');
-                console.log('=== FILLER TRIAL MOUSE DATA DEBUG ===');
-                console.log('MouseData length:', mouseData.length);
-                console.log('MouseData sample (first 3 points):', mouseData.slice(0, 3));
-                console.log('=== END MOUSE DATA DEBUG ===');
-            }
-        } catch (error) {
-            console.error('Error stopping filler tracking:', error);
-        }
-        
-        // Record filler trial data
-        this.dataManager.recordTrialData(trialInfo, fillerData, mouseData);
-        this.dataManager.recordMouseData(mouseData, this.globalTrialNumber - 1, 'filler');
-        
-        // Debug: Verify trial indexing
-        console.log(`=== FILLER TRIAL RECORDING DEBUG ===`);
-        console.log('Global trial number:', this.globalTrialNumber);
-        console.log('Filler trial counter:', this.fillerTrialCounter);
-        console.log('Trial index used for data recording:', this.globalTrialNumber - 1);
-        console.log('=== END FILLER TRIAL RECORDING DEBUG ===');
-        
-        // Hide images
-        this.imageManager.hideImages(imageContainer);
-        
-        console.log(`Filler trial ${this.fillerTrialCounter} completed`);
-    }
     
     async waitForUserProgression() {
         const continueBtn = document.getElementById('continue-trial');
@@ -778,7 +409,14 @@ class ExperimentController {
     }
     
     restartExperiment() {
-        // Reset state
+        // Reset 3-round system state
+        this.currentRound = 1;
+        this.roundTrialCounter = 0;
+        this.globalTrialCounter = 0;
+        this.usedImages.clear();
+        this.roundStartTime = null;
+        
+        // Reset legacy state
         this.currentState = 'welcome';
         this.currentTrial = 0;
         this.fillerTrialCounter = 0;
@@ -812,9 +450,6 @@ class ExperimentController {
                 if (this.currentState === 'welcome') {
                     event.preventDefault();
                     this.handleStartExperiment();
-                } else if (this.currentState === 'transition') {
-                    event.preventDefault();
-                    this.startMainExperiment();
                 } else if (this.currentState === 'experiment') {
                     // Handle space bar for trial progression
                     const continueBtn = document.getElementById('continue-trial');
@@ -1141,6 +776,303 @@ class ExperimentController {
                 downloadBtn.textContent = 'Download Trial Heatmaps (ZIP)';
             }
         }
+    }
+
+    // ====== NEW 3-ROUND SYSTEM METHODS ======
+
+    async startRound(roundNumber) {
+        console.log(`=== Starting Round ${roundNumber} of ${this.totalRounds} ===`);
+        
+        this.currentRound = roundNumber;
+        this.roundTrialCounter = 0;
+        this.roundStartTime = performance.now();
+        
+        // Initialize experiment data collection on first round
+        if (roundNumber === 1) {
+            this.experimentStarted = true;
+            this.isExperimentRunning = true;
+            this.dataManager.startExperiment();
+        }
+        
+        // Show experiment screen
+        this.showScreen('experiment');
+        
+        // Configure progress display
+        this.setupRoundUI();
+        
+        // Configure MouseView for trials
+        await this.configureMouseView();
+        
+        console.log(`Round ${roundNumber} setup complete, starting trials...`);
+        await this.runRoundTrials();
+    }
+
+    setupRoundUI() {
+        // Hide practice indicators
+        const practiceIndicator = document.getElementById('practice-indicator');
+        if (practiceIndicator) {
+            practiceIndicator.style.display = 'none';
+        }
+        
+        // Show progress indicator for rounds
+        const mainProgressIndicator = document.getElementById('progress-indicator');
+        if (mainProgressIndicator) {
+            mainProgressIndicator.classList.remove('hide-during-practice');
+            
+            if (this.settings.showProgress) {
+                mainProgressIndicator.style.display = 'block';
+                mainProgressIndicator.style.visibility = 'visible';
+                mainProgressIndicator.style.opacity = '1';
+                mainProgressIndicator.style.zIndex = '200';
+            } else {
+                mainProgressIndicator.style.display = 'none';
+            }
+        }
+        
+        // Update progress display
+        this.updateRoundProgress();
+    }
+
+    async runRoundTrials() {
+        console.log(`Running ${this.trialsPerRound} trials for Round ${this.currentRound}...`);
+        
+        // Generate trial pattern for this round (12 image + 8 filler, randomized)
+        const trialPattern = this.generateTrialPattern();
+        console.log('Trial pattern for round:', trialPattern);
+        
+        // Run all trials in the round
+        for (let i = 0; i < this.trialsPerRound; i++) {
+            if (!this.isExperimentRunning) {
+                console.log('Experiment stopped, breaking trial loop');
+                break;
+            }
+            
+            this.roundTrialCounter++;
+            this.globalTrialCounter++;
+            
+            const trialType = trialPattern[i];
+            console.log(`Round ${this.currentRound}, Trial ${this.roundTrialCounter}: ${trialType}`);
+            
+            try {
+                await this.runSingleTrial(trialType);
+            } catch (error) {
+                console.error(`Error in Round ${this.currentRound}, Trial ${this.roundTrialCounter}:`, error);
+                // Continue with next trial
+            }
+            
+            // Update progress
+            this.updateRoundProgress();
+            
+            // Brief inter-trial interval
+            await this.delay(250);
+        }
+        
+        console.log(`Round ${this.currentRound} trials completed`);
+        await this.completeRound();
+    }
+
+    async runSingleTrial(trialType) {
+        console.log(`=== Single Trial: ${trialType} (Round ${this.currentRound}, Trial ${this.roundTrialCounter}) ===`);
+        
+        // Show start/next button
+        if (this.globalTrialCounter === 1) {
+            await this.showMainStartButton();
+        } else {
+            await this.showNextTrialButton();
+        }
+        
+        // Start trial data collection
+        const trialInfo = this.dataManager.startTrial(this.globalTrialCounter - 1, trialType);
+        trialInfo.roundNumber = this.currentRound;
+        trialInfo.roundTrialIndex = this.roundTrialCounter;
+        
+        // Get images for this trial using new selection system
+        let imageData;
+        try {
+            imageData = this.imageManager.selectImagesForTrial(trialType, this.usedImages);
+            console.log(`Selected images for ${trialType} trial:`, imageData);
+        } catch (error) {
+            console.error('Error selecting images:', error);
+            throw error; // Don't continue trial if image selection fails
+        }
+        
+        // Configure MouseView and start tracking
+        try {
+            this.configureMouseView();
+            if (typeof mouseview !== 'undefined') {
+                mouseview.startTracking();
+            }
+        } catch (error) {
+            console.error('Error starting mouse tracking:', error);
+        }
+        
+        // Display images
+        const imageContainer = document.getElementById('image-container');
+        try {
+            this.imageManager.displayImages(imageData, imageContainer);
+        } catch (error) {
+            console.error('Error displaying images:', error);
+        }
+        
+        // Show countdown and wait for viewing time
+        if (this.settings.imageViewingTime > 0) {
+            if (this.settings.showTimer) {
+                this.showTrialCountdown();
+            }
+            await this.delay(this.settings.imageViewingTime);
+            this.hideTrialCountdown();
+        }
+        
+        // Stop tracking and collect mouse data
+        let mouseData = [];
+        try {
+            if (typeof mouseview !== 'undefined') {
+                mouseview.stopTracking();
+                mouseData = mouseview.datalogger?.data || [];
+                if (mouseview.datalogger) {
+                    mouseview.datalogger.data = []; // Clear for next trial
+                }
+            }
+        } catch (error) {
+            console.error('Error collecting mouse data:', error);
+        }
+        
+        // Record trial data
+        this.dataManager.recordTrialData(trialInfo, imageData, mouseData);
+        this.dataManager.recordMouseData(mouseData, this.globalTrialCounter - 1, trialType, this.currentRound, this.roundTrialCounter);
+        
+        // Hide images
+        this.imageManager.hideImages(imageContainer);
+        
+        console.log(`Trial ${this.roundTrialCounter} of Round ${this.currentRound} completed`);
+    }
+
+    async completeRound() {
+        console.log(`=== Round ${this.currentRound} Complete ===`);
+        
+        const roundElapsed = this.getRoundElapsedTime();
+        console.log(`Round ${this.currentRound} took ${this.formatTime(roundElapsed)}`);
+        
+        if (this.currentRound < this.totalRounds) {
+            // More rounds to go - show inter-round screen
+            console.log(`Showing inter-round screen for Round ${this.currentRound} → ${this.currentRound + 1}`);
+            this.showInterRoundScreen();
+        } else {
+            // All rounds complete - finish experiment
+            console.log('All rounds completed, finishing experiment');
+            await this.finishAllRounds();
+        }
+    }
+
+    showInterRoundScreen() {
+        const roundElapsed = this.getRoundElapsedTime();
+        
+        // Update round summary in the appropriate screen
+        const roundTrialsElement = document.getElementById(`round${this.currentRound}-trials`);
+        const roundTimeElement = document.getElementById(`round${this.currentRound}-time`);
+        
+        if (roundTrialsElement) roundTrialsElement.textContent = this.trialsPerRound;
+        if (roundTimeElement) roundTimeElement.textContent = this.formatTime(roundElapsed);
+        
+        // Show the appropriate inter-round screen
+        this.showScreen(`round${this.currentRound}-complete`);
+        
+        console.log(`Inter-round screen displayed for Round ${this.currentRound}`);
+    }
+
+    async proceedToNextRound() {
+        console.log(`Proceeding from Round ${this.currentRound} to Round ${this.currentRound + 1}`);
+        
+        const nextRound = this.currentRound + 1;
+        if (nextRound <= this.totalRounds) {
+            await this.startRound(nextRound);
+        } else {
+            console.error('Attempted to proceed beyond final round');
+            await this.finishAllRounds();
+        }
+    }
+
+    async finishAllRounds() {
+        console.log('=== All 3 Rounds Complete ===');
+        
+        this.isExperimentRunning = false;
+        
+        // Clean up any running timers
+        this.hideTrialCountdown();
+        
+        // Deactivate mouse tracking
+        try {
+            if (typeof mouseview !== 'undefined' && mouseview.removeAll) {
+                mouseview.removeAll();
+            }
+        } catch (error) {
+            console.log('MouseView cleanup completed with minor error:', error.message);
+        }
+        
+        // Calculate total experiment time
+        const totalTime = this.globalTrialCounter > 0 ? 
+            (performance.now() - this.dataManager.experimentStartTime) / 1000 : 0;
+        
+        // Update final screen summary
+        const totalTrialsElement = document.getElementById('total-trials');
+        const totalTimeElement = document.getElementById('total-time');
+        
+        if (totalTrialsElement) totalTrialsElement.textContent = this.globalTrialCounter;
+        if (totalTimeElement) totalTimeElement.textContent = this.formatTime(totalTime);
+        
+        // Show end screen with manual download options
+        this.showScreen('end');
+        
+        console.log('3-Round experiment completed successfully!');
+        console.log('Final stats:');
+        console.log(`- Total trials: ${this.globalTrialCounter}`);
+        console.log(`- Total time: ${this.formatTime(totalTime)}`);
+        console.log(`- Data summary:`, this.dataManager.getSummaryStats?.() || 'N/A');
+    }
+
+    generateTrialPattern() {
+        // Create array with 12 'image' and 8 'filler' trials, then shuffle
+        const pattern = [];
+        for (let i = 0; i < this.imageTrialsPerRound; i++) {
+            pattern.push('image');
+        }
+        for (let i = 0; i < this.fillerTrialsPerRound; i++) {
+            pattern.push('filler');
+        }
+        this.shuffleArray(pattern);
+        return pattern;
+    }
+
+    shuffleArray(array) {
+        for (let i = array.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [array[i], array[j]] = [array[j], array[i]];
+        }
+    }
+
+    updateRoundProgress() {
+        const roundElement = document.getElementById('current-round');
+        const totalElement = document.getElementById('total-rounds'); 
+        const trialElement = document.getElementById('current-trial');
+        const totalTrialElement = document.getElementById('total-trials');
+        
+        if (roundElement) roundElement.textContent = this.currentRound;
+        if (totalElement) totalElement.textContent = this.totalRounds;
+        if (trialElement) trialElement.textContent = this.globalTrialCounter;
+        if (totalTrialElement) totalTrialElement.textContent = this.totalRounds * this.trialsPerRound;
+        
+        console.log(`Round ${this.currentRound}/${this.totalRounds}, Trial ${this.roundTrialCounter}/${this.trialsPerRound}, Global: ${this.globalTrialCounter}`);
+    }
+
+    formatTime(seconds) {
+        const mins = Math.floor(seconds / 60);
+        const secs = Math.floor(seconds % 60);
+        return `${mins}:${secs.toString().padStart(2, '0')}`;
+    }
+
+    getRoundElapsedTime() {
+        if (!this.roundStartTime) return 0;
+        return (performance.now() - this.roundStartTime) / 1000;
     }
 }
 

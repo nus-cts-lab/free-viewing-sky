@@ -1,19 +1,22 @@
 /**
- * ImageManager - Handles image loading, randomization, and management
- * Replicates the image handling logic from the original PsychoPy experiment
+ * ImageManager - Handles image loading, randomization, and management for 3-round system
+ * Uses new-data.json with 4 categories: dysphoric, threat, positive, filler
  */
 
 class ImageManager {
     constructor() {
-        this.config = null;
-        this.imageTrials = [];
-        this.neutralFillers = [];
-        this.fillerPattern = [];
+        this.imageCategories = null;
+        this.availableImages = {
+            dysphoric: [],
+            threat: [],
+            positive: [],
+            filler: []
+        };
         this.preloadedImages = new Map();
         this.loadingProgress = 0;
         this.totalImages = 0;
         
-        // Position mappings (convert from normalized to CSS positions)
+        // Position mappings (same as before)
         this.positions = {
             'top-left': { x: -0.3, y: 0.2 },
             'top-right': { x: 0.3, y: 0.2 },
@@ -21,372 +24,346 @@ class ImageManager {
             'bottom-right': { x: 0.3, y: -0.2 }
         };
         
-        this.categories = ['dysphoric', 'threat', 'positive', 'neutral'];
-        this.fillerCategories = ['filler1', 'filler2', 'filler3', 'filler4'];
+        this.categories = ['dysphoric', 'threat', 'positive', 'filler'];
+        this.positionNames = ['top-left', 'top-right', 'bottom-left', 'bottom-right'];
+        
+        console.log('ImageManager initialized for 3-round system with new-data.json structure');
     }
     
     async loadConfig() {
         try {
-            const response = await fetch('data/stimuli-config.json');
-            this.config = await response.json();
+            console.log('Loading new-data.json...');
+            const response = await fetch('data/new-data.json');
+            this.imageCategories = await response.json();
             
-            // Initialize arrays from config
-            this.imageTrials = [...this.config.imageTrials];
-            this.neutralFillers = [...this.config.neutralFillers];
+            // Initialize available image pools (deep copy to preserve originals)
+            this.availableImages = {
+                dysphoric: [...this.imageCategories.dysphoric],
+                threat: [...this.imageCategories.threat],
+                positive: [...this.imageCategories.positive],
+                filler: [...this.imageCategories.filler]
+            };
             
-            // Generate filler pattern (replicates Python's neufil_skip_list logic)
-            this.generateFillerPattern();
+            // Shuffle all pools for randomization
+            Object.values(this.availableImages).forEach(pool => this.shuffleArray(pool));
             
-            // Randomize image order within categories
-            this.randomizeImageOrder();
-            
-            console.log('Image config loaded successfully');
-            console.log(`Image trials: ${this.imageTrials.length}`);
-            console.log(`Neutral fillers: ${this.neutralFillers.length}`);
-            console.log('Filler pattern:', this.fillerPattern);
+            console.log('New image categories loaded successfully:');
+            console.log(`- Dysphoric: ${this.availableImages.dysphoric.length} images`);
+            console.log(`- Threat: ${this.availableImages.threat.length} images`);
+            console.log(`- Positive: ${this.availableImages.positive.length} images`);
+            console.log(`- Filler: ${this.availableImages.filler.length} images`);
+            console.log(`- Total: ${Object.values(this.availableImages).reduce((sum, pool) => sum + pool.length, 0)} images`);
             
             return true;
         } catch (error) {
-            console.error('Failed to load image config:', error);
+            console.error('Failed to load new-data.json:', error);
             return false;
         }
     }
     
-    generateFillerPattern() {
-        // Create pattern for total trials (image trials + filler trials)
-        console.log('=== GENERATE FILLER PATTERN DEBUG ===');
-        console.log('Config:', this.config);
-        console.log('Config.config:', this.config.config);
+    /**
+     * Select images for an image trial: 1 dysphoric + 1 threat + 1 positive + 1 filler
+     * Returns object with selected images and their random position assignments
+     */
+    selectImagesForImageTrial(usedImages) {
+        console.log('=== Selecting Images for IMAGE Trial ===');
         
-        const numImageTrials = this.config.config.numImageTrials; // 12
-        const numFillers = this.config.config.numFillerItems; // 8
-        const totalTrials = numImageTrials + numFillers; // 20
+        const selected = {
+            dysphoric: '',
+            threat: '',
+            positive: '',
+            filler: '',
+            positions: {
+                dysphoric: '',
+                threat: '',
+                positive: '',
+                filler: ''
+            }
+        };
         
-        console.log('numImageTrials:', numImageTrials);
-        console.log('numFillers:', numFillers);
-        console.log('totalTrials calculated:', totalTrials);
+        // Randomly shuffle positions for this trial
+        const shuffledPositions = [...this.positionNames];
+        this.shuffleArray(shuffledPositions);
         
-        // Create pattern array with all positions
-        this.fillerPattern = new Array(totalTrials).fill(false);
-        console.log('Pattern array created with length:', this.fillerPattern.length);
+        // Select one image from each emotional category + filler
+        const emotionalCategories = ['dysphoric', 'threat', 'positive'];
         
-        // Mark filler positions (8 out of 20 will be true)
-        for (let i = 0; i < numFillers; i++) {
-            this.fillerPattern[i] = true;
+        emotionalCategories.forEach((category, index) => {
+            const availablePool = this.availableImages[category].filter(img => !usedImages.has(`images/${img}`));
+            
+            if (availablePool.length === 0) {
+                throw new Error(`No available ${category} images remaining! Used: ${usedImages.size}`);
+            }
+            
+            // Select first available image (pools are already shuffled)
+            const selectedImage = availablePool[0];
+            const imagePath = `images/${selectedImage}`;
+            
+            selected[category] = selectedImage;
+            selected.positions[category] = shuffledPositions[index];
+            
+            // Remove from available pool and add to used set
+            this.availableImages[category] = this.availableImages[category].filter(img => img !== selectedImage);
+            usedImages.add(imagePath);
+            
+            console.log(`Selected ${category}: ${selectedImage} at ${shuffledPositions[index]}`);
+        });
+        
+        // Select filler image for 4th position
+        const availableFillerPool = this.availableImages.filler.filter(img => !usedImages.has(`images/${img}`));
+        
+        if (availableFillerPool.length === 0) {
+            throw new Error(`No available filler images remaining! Used: ${usedImages.size}`);
         }
-        console.log('Pattern after marking fillers:', this.fillerPattern);
         
-        // Shuffle the pattern to randomize filler positions
-        this.shuffleArray(this.fillerPattern);
+        const selectedFillerImage = availableFillerPool[0];
+        const fillerImagePath = `images/${selectedFillerImage}`;
         
-        console.log('Final generated filler pattern:', this.fillerPattern);
-        console.log('Final pattern length:', this.fillerPattern.length);
-        console.log(`Total trials: ${totalTrials}, Fillers: ${numFillers}, Image trials: ${numImageTrials}`);
-        console.log('=== END GENERATE FILLER PATTERN DEBUG ===');
+        selected.filler = selectedFillerImage;
+        selected.positions.filler = shuffledPositions[3]; // Last position
+        
+        // Remove from available pool and add to used set
+        this.availableImages.filler = this.availableImages.filler.filter(img => img !== selectedFillerImage);
+        usedImages.add(fillerImagePath);
+        
+        console.log(`Selected filler: ${selectedFillerImage} at ${shuffledPositions[3]}`);
+        console.log('Image trial selection complete:', selected);
+        
+        return selected;
     }
     
-    randomizeImageOrder() {
-        // Create separate arrays for each category, then shuffle
-        const dys_arr = this.imageTrials.map(trial => trial.dysphoric);
-        const thr_arr = this.imageTrials.map(trial => trial.threat);
-        const pos_arr = this.imageTrials.map(trial => trial.positive);
-        const neu_arr = this.imageTrials.map(trial => trial.neutral);
+    /**
+     * Select images for a filler trial: 4 filler images
+     * Returns object with selected filler images and their random position assignments
+     */
+    selectImagesForFillerTrial(usedImages) {
+        console.log('=== Selecting Images for FILLER Trial ===');
         
-        // Shuffle each category independently (replicates Python random.shuffle)
-        this.shuffleArray(dys_arr);
-        this.shuffleArray(thr_arr);
-        this.shuffleArray(pos_arr);
-        this.shuffleArray(neu_arr);
+        const selected = {
+            filler1: '',
+            filler2: '',
+            filler3: '',
+            filler4: '',
+            positions: {
+                filler1: '',
+                filler2: '',
+                filler3: '',
+                filler4: ''
+            }
+        };
         
-        // Reconstruct trials with shuffled images
-        this.imageTrials = this.imageTrials.map((trial, index) => ({
-            ...trial,
-            dysphoric: dys_arr[index],
-            threat: thr_arr[index],
-            positive: pos_arr[index],
-            neutral: neu_arr[index]
-        }));
+        // Randomly shuffle positions for this trial
+        const shuffledPositions = [...this.positionNames];
+        this.shuffleArray(shuffledPositions);
         
-        // Also shuffle filler arrays
-        const filler1_arr = this.neutralFillers.map(filler => filler.filler1);
-        const filler2_arr = this.neutralFillers.map(filler => filler.filler2);
-        const filler3_arr = this.neutralFillers.map(filler => filler.filler3);
-        const filler4_arr = this.neutralFillers.map(filler => filler.filler4);
+        // Select 4 different filler images
+        const availableFillerPool = this.availableImages.filler.filter(img => !usedImages.has(`images/${img}`));
         
-        this.shuffleArray(filler1_arr);
-        this.shuffleArray(filler2_arr);
-        this.shuffleArray(filler3_arr);
-        this.shuffleArray(filler4_arr);
+        if (availableFillerPool.length < 4) {
+            throw new Error(`Not enough filler images remaining! Need 4, have ${availableFillerPool.length}`);
+        }
         
-        this.neutralFillers = this.neutralFillers.map((filler, index) => ({
-            ...filler,
-            filler1: filler1_arr[index],
-            filler2: filler2_arr[index],
-            filler3: filler3_arr[index],
-            filler4: filler4_arr[index]
-        }));
+        for (let i = 0; i < 4; i++) {
+            const selectedImage = availableFillerPool[i];
+            const imagePath = `images/${selectedImage}`;
+            const fillerKey = `filler${i + 1}`;
+            
+            selected[fillerKey] = selectedImage;
+            selected.positions[fillerKey] = shuffledPositions[i];
+            
+            // Remove from available pool and add to used set
+            this.availableImages.filler = this.availableImages.filler.filter(img => img !== selectedImage);
+            usedImages.add(imagePath);
+            
+            console.log(`Selected ${fillerKey}: ${selectedImage} at ${shuffledPositions[i]}`);
+        }
         
-        console.log('Image order randomized');
+        console.log('Filler trial selection complete:', selected);
+        
+        return selected;
     }
     
+    /**
+     * Main method called by ExperimentController to get images for a trial
+     */
+    selectImagesForTrial(trialType, usedImages) {
+        if (trialType === 'image') {
+            return this.selectImagesForImageTrial(usedImages);
+        } else if (trialType === 'filler') {
+            return this.selectImagesForFillerTrial(usedImages);
+        } else {
+            throw new Error(`Unknown trial type: ${trialType}`);
+        }
+    }
+    
+    /**
+     * Display images in the container based on position assignments
+     */
+    displayImages(imageData, container) {
+        console.log('=== Displaying Images ===');
+        console.log('Image data:', imageData);
+        
+        if (imageData.error) {
+            console.error('Cannot display images due to error:', imageData.error);
+            return;
+        }
+        
+        // Hide all images first
+        this.hideImages(container);
+        
+        // Map position names to image elements
+        const imageElements = {
+            'top-left': container.querySelector('#top-left-image'),
+            'top-right': container.querySelector('#top-right-image'),
+            'bottom-left': container.querySelector('#bottom-left-image'),
+            'bottom-right': container.querySelector('#bottom-right-image')
+        };
+        
+        // Display images based on their assigned positions
+        if (imageData.positions) {
+            Object.keys(imageData.positions).forEach(category => {
+                const position = imageData.positions[category];
+                const imageElement = imageElements[position];
+                
+                if (imageElement && position) {
+                    let imagePath = '';
+                    
+                    // Determine image path based on category
+                    if (category === 'dysphoric' || category === 'threat' || category === 'positive' || category === 'filler') {
+                        imagePath = `images/${imageData[category]}`;
+                    } else if (category.startsWith('filler')) {
+                        imagePath = `images/${imageData[category]}`;
+                    }
+                    
+                    if (imagePath) {
+                        imageElement.src = imagePath;
+                        imageElement.style.display = 'block';
+                        imageElement.style.opacity = '1';
+                        
+                        console.log(`Displaying ${category} image: ${imagePath} at ${position}`);
+                    }
+                }
+            });
+        }
+        
+        console.log('Images displayed successfully');
+    }
+    
+    /**
+     * Hide all images in container
+     */
+    hideImages(container) {
+        const imageElements = container.querySelectorAll('.stimulus-image');
+        imageElements.forEach(img => {
+            img.style.display = 'none';
+            img.style.opacity = '0';
+            img.src = ''; // Clear source to free memory
+        });
+    }
+    
+    /**
+     * Preload all images for smooth display during experiment
+     */
+    async preloadAllImages(progressCallback) {
+        console.log('=== Preloading All Images ===');
+        
+        const allImages = [];
+        
+        // Collect all image paths
+        Object.values(this.imageCategories).forEach(categoryImages => {
+            categoryImages.forEach(imagePath => {
+                allImages.push(`images/${imagePath}`);
+            });
+        });
+        
+        this.totalImages = allImages.length;
+        console.log(`Starting preload of ${this.totalImages} images...`);
+        
+        const loadPromises = allImages.map((imagePath, index) => {
+            return new Promise((resolve, reject) => {
+                const img = new Image();
+                
+                img.onload = () => {
+                    this.preloadedImages.set(imagePath, img);
+                    this.loadingProgress++;
+                    
+                    if (progressCallback) {
+                        progressCallback(this.loadingProgress, this.totalImages, imagePath);
+                    }
+                    
+                    resolve(imagePath);
+                };
+                
+                img.onerror = () => {
+                    console.warn(`Failed to load image: ${imagePath}`);
+                    this.loadingProgress++;
+                    
+                    if (progressCallback) {
+                        progressCallback(this.loadingProgress, this.totalImages, imagePath);
+                    }
+                    
+                    // Don't reject - continue with other images
+                    resolve(imagePath);
+                };
+                
+                img.src = imagePath;
+            });
+        });
+        
+        await Promise.all(loadPromises);
+        
+        console.log(`Preloading complete! Loaded ${this.preloadedImages.size}/${this.totalImages} images`);
+        return true;
+    }
+    
+    /**
+     * Get remaining images available for selection
+     */
+    getRemainingImageCounts() {
+        return {
+            dysphoric: this.availableImages.dysphoric.length,
+            threat: this.availableImages.threat.length,
+            positive: this.availableImages.positive.length,
+            filler: this.availableImages.filler.length,
+            total: Object.values(this.availableImages).reduce((sum, pool) => sum + pool.length, 0)
+        };
+    }
+    
+    /**
+     * Check if enough images remain for remaining trials
+     */
+    canCompleteRemainingTrials(imageTrialsRemaining, fillerTrialsRemaining) {
+        const counts = this.getRemainingImageCounts();
+        
+        const emotionalImagesNeeded = imageTrialsRemaining; // 1 per image trial
+        const fillerImagesNeeded = (imageTrialsRemaining * 1) + (fillerTrialsRemaining * 4); // 1 per image trial + 4 per filler trial
+        
+        const canComplete = (
+            counts.dysphoric >= emotionalImagesNeeded &&
+            counts.threat >= emotionalImagesNeeded &&
+            counts.positive >= emotionalImagesNeeded &&
+            counts.filler >= fillerImagesNeeded
+        );
+        
+        console.log(`Image availability check:
+        - Emotional images needed: ${emotionalImagesNeeded} each
+        - Filler images needed: ${fillerImagesNeeded}
+        - Available: dysphoric=${counts.dysphoric}, threat=${counts.threat}, positive=${counts.positive}, filler=${counts.filler}
+        - Can complete: ${canComplete}`);
+        
+        return canComplete;
+    }
+    
+    /**
+     * Utility method to shuffle an array in place
+     */
     shuffleArray(array) {
-        // Fisher-Yates shuffle algorithm (equivalent to Python's random.shuffle)
         for (let i = array.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
             [array[i], array[j]] = [array[j], array[i]];
         }
     }
     
-    async preloadAllImages(onProgress = null) {
-        const allImagePaths = new Set();
-        
-        // Collect all image paths
-        this.imageTrials.forEach(trial => {
-            this.categories.forEach(category => {
-                allImagePaths.add(trial[category]);
-            });
-        });
-        
-        this.neutralFillers.forEach(filler => {
-            this.fillerCategories.forEach(category => {
-                allImagePaths.add(filler[category]);
-            });
-        });
-        
-        this.totalImages = allImagePaths.size;
-        this.loadingProgress = 0;
-        
-        console.log(`Starting to preload ${this.totalImages} images...`);
-        
-        const imagePromises = Array.from(allImagePaths).map(imagePath => 
-            this.preloadSingleImage(imagePath, onProgress)
-        );
-        
-        try {
-            await Promise.all(imagePromises);
-            console.log('All images preloaded successfully');
-            return true;
-        } catch (error) {
-            console.error('Failed to preload images:', error);
-            return false;
-        }
-    }
-    
-    preloadSingleImage(imagePath, onProgress = null) {
-        return new Promise((resolve, reject) => {
-            if (this.preloadedImages.has(imagePath)) {
-                resolve(this.preloadedImages.get(imagePath));
-                return;
-            }
-            
-            const img = new Image();
-            
-            img.onload = () => {
-                this.preloadedImages.set(imagePath, img);
-                this.loadingProgress++;
-                
-                if (onProgress) {
-                    onProgress(this.loadingProgress, this.totalImages, imagePath);
-                }
-                
-                resolve(img);
-            };
-            
-            img.onerror = () => {
-                console.error(`Failed to load image: ${imagePath}`);
-                reject(new Error(`Failed to load image: ${imagePath}`));
-            };
-            
-            // Add cache busting for development
-            const cacheBuster = new Date().getTime();
-            img.src = `images/${imagePath}?v=${cacheBuster}`;
-        });
-    }
-    
-    getTrialImages(trialIndex) {
-        if (trialIndex < 0 || trialIndex >= this.imageTrials.length) {
-            throw new Error(`Invalid trial index: ${trialIndex}`);
-        }
-        
-        const trial = this.imageTrials[trialIndex];
-        
-        // Create randomized position mapping for this trial
-        const positions = ['top-left', 'top-right', 'bottom-left', 'bottom-right'];
-        this.shuffleArray(positions);
-        
-        return {
-            trialIndex: trialIndex,
-            images: {
-                dysphoric: {
-                    src: trial.dysphoric,
-                    position: positions[0],
-                    category: 'dysphoric'
-                },
-                threat: {
-                    src: trial.threat,
-                    position: positions[1],
-                    category: 'threat'
-                },
-                positive: {
-                    src: trial.positive,
-                    position: positions[2],
-                    category: 'positive'
-                },
-                neutral: {
-                    src: trial.neutral,
-                    position: positions[3],
-                    category: 'neutral'
-                }
-            },
-            positions: {
-                dysphoric: positions[0],
-                threat: positions[1],
-                positive: positions[2],
-                neutral: positions[3]
-            }
-        };
-    }
-    
-    getFillerImages(fillerIndex) {
-        if (fillerIndex < 0 || fillerIndex >= this.neutralFillers.length) {
-            throw new Error(`Invalid filler index: ${fillerIndex}`);
-        }
-        
-        const filler = this.neutralFillers[fillerIndex];
-        
-        // Create randomized position mapping for filler trial
-        const positions = ['top-left', 'top-right', 'bottom-left', 'bottom-right'];
-        this.shuffleArray(positions);
-        
-        return {
-            fillerIndex: fillerIndex,
-            images: {
-                filler1: {
-                    src: filler.filler1,
-                    position: positions[0],
-                    category: 'filler1'
-                },
-                filler2: {
-                    src: filler.filler2,
-                    position: positions[1],
-                    category: 'filler2'
-                },
-                filler3: {
-                    src: filler.filler3,
-                    position: positions[2],
-                    category: 'filler3'
-                },
-                filler4: {
-                    src: filler.filler4,
-                    position: positions[3],
-                    category: 'filler4'
-                }
-            },
-            positions: {
-                filler1: positions[0],
-                filler2: positions[1],
-                filler3: positions[2],
-                filler4: positions[3]
-            }
-        };
-    }
-    
-    shouldShowFiller(trialIndex) {
-        return this.fillerPattern[trialIndex] || false;
-    }
-    
-    displayImages(imageData, container) {
-        // Get image elements
-        const topLeftImg = container.querySelector('#top-left-image');
-        const topRightImg = container.querySelector('#top-right-image');
-        const bottomLeftImg = container.querySelector('#bottom-left-image');
-        const bottomRightImg = container.querySelector('#bottom-right-image');
-        
-        // Get label elements (for debugging)
-        const topLeftLabel = container.querySelector('#top-left-label');
-        const topRightLabel = container.querySelector('#top-right-label');
-        const bottomLeftLabel = container.querySelector('#bottom-left-label');
-        const bottomRightLabel = container.querySelector('#bottom-right-label');
-        
-        // Clear all images first
-        [topLeftImg, topRightImg, bottomLeftImg, bottomRightImg].forEach(img => {
-            img.style.display = 'none';
-            img.src = '';
-        });
-        
-        // Display images in their assigned positions
-        Object.values(imageData.images).forEach(imageInfo => {
-            let targetImg, targetLabel;
-            
-            switch (imageInfo.position) {
-                case 'top-left':
-                    targetImg = topLeftImg;
-                    targetLabel = topLeftLabel;
-                    break;
-                case 'top-right':
-                    targetImg = topRightImg;
-                    targetLabel = topRightLabel;
-                    break;
-                case 'bottom-left':
-                    targetImg = bottomLeftImg;
-                    targetLabel = bottomLeftLabel;
-                    break;
-                case 'bottom-right':
-                    targetImg = bottomRightImg;
-                    targetLabel = bottomRightLabel;
-                    break;
-            }
-            
-            if (targetImg) {
-                const preloadedImg = this.preloadedImages.get(imageInfo.src);
-                if (preloadedImg) {
-                    targetImg.src = preloadedImg.src;
-                } else {
-                    // Fallback if image wasn't preloaded
-                    targetImg.src = `images/${imageInfo.src}`;
-                }
-                targetImg.style.display = 'block';
-                targetImg.classList.add('active');
-            }
-            
-            if (targetLabel) {
-                targetLabel.textContent = imageInfo.category;
-                if (this.config.debug) {
-                    targetLabel.classList.add('show-labels');
-                }
-            }
-        });
-    }
-    
-    hideImages(container) {
-        const images = container.querySelectorAll('.stimulus-image');
-        const labels = container.querySelectorAll('.image-label');
-        
-        images.forEach(img => {
-            img.style.display = 'none';
-            img.classList.remove('active');
-        });
-        
-        labels.forEach(label => {
-            label.classList.remove('show-labels');
-        });
-    }
-    
-    getLoadingProgress() {
-        return {
-            loaded: this.loadingProgress,
-            total: this.totalImages,
-            percentage: this.totalImages > 0 ? (this.loadingProgress / this.totalImages) * 100 : 0
-        };
-    }
-    
-    isImagePreloaded(imagePath) {
-        return this.preloadedImages.has(imagePath);
-    }
-    
-    getPreloadedImage(imagePath) {
-        return this.preloadedImages.get(imagePath);
-    }
 }
 
 // Export for use in other modules

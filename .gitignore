@@ -47,3 +47,6 @@ node_modules/
 # Backup files
 *.bak
 *.backup
+
+# README files
+IMPLEMENTATION_PLAN.md

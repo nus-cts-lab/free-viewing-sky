@@ -7,16 +7,20 @@
     <link rel="stylesheet" href="css/experiment.css">
     <link rel="stylesheet" href="css/mouseview.css">
     <style>
-        .hide-during-practice {
-            display: none !important;
-            visibility: hidden !important;
-            opacity: 0 !important;
+        /* Custom styles for 3-round experiment */
+        .round-summary {
+            background: rgba(0, 0, 0, 0.05);
+            border-radius: 8px;
+            padding: 15px;
+            margin: 20px 0;
         }
-        #progress-indicator.hide-during-practice {
-            display: none !important;
-            visibility: hidden !important;
-            opacity: 0 !important;
-            z-index: -1 !important;
+        
+        .experiment-summary {
+            background: rgba(76, 175, 80, 0.1);
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            border: 2px solid rgba(76, 175, 80, 0.3);
         }
     </style>
 </head>
@@ -30,7 +34,7 @@
                 <div class="instructions">
                     <p>In this experiment, you will view a series of images using your mouse cursor as a "spotlight" of attention. Only the area around your cursor will be visible clearly, while other areas will be blurred.</p>
                     
-                    <p>First, you will complete a practice trial to familiarize yourself with the task. Then you will proceed to the main experiment with multiple trials.</p>
+                    <p>You will complete 3 rounds of experiments with 20 trials each (60 trials total). Move your mouse to look at the images - it acts as your "spotlight" of attention.</p>
                     
                     <p>Each trial begins with a fixation cross (+) in the center. Focus your mouse cursor on this cross. Then, four images will appear in the corners of the screen for 15 seconds each.</p>
                     
@@ -55,31 +59,15 @@
                         <label for="session">Session:</label>
                         <input type="text" id="session" name="session" value="001" required>
                     </div>
-                    <button type="submit" class="primary-button">Continue to Practice</button>
+                    <button type="submit" class="primary-button">Start Experiment</button>
                 </form>
             </div>
-        </div>
-
-        <!-- Practice Screen -->
-        <div id="practice-screen" class="screen">
-            <div class="content-wrapper">
-                <h2>Practice Trial</h2>
-                <p id="practice-instructions">Let's practice! You'll see 4 images arranged in different positions. Move your mouse cursor to look at the images - it acts as your "spotlight" of attention. There's no right or wrong way to look. Just explore the images naturally.</p>
-                <p id="practice-progress">Preparing practice trial...</p>
-            </div>
-            <button id="skip-practice" class="secondary-button">Skip Practice</button>
         </div>
 
         <!-- Main Experiment Screen -->
         <div id="experiment-screen" class="screen">
             <!-- Fixation Cross -->
             <div id="fixation-cross" class="fixation-cross">+</div>
-            
-            <!-- Center Start Button for Practice -->
-            <div id="practice-start-button" class="center-button" style="display: none;">
-                <button class="start-button">Start</button>
-                <p class="button-instruction">Click to start practice</p>
-            </div>
             
             <!-- Center Start Button for First Main Trial -->
             <div id="main-start-button" class="center-button" style="display: none;">
@@ -98,10 +86,6 @@
                 <span id="current-trial">1</span> / <span id="total-trials">20</span>
             </div>
             
-            <!-- Practice Indicator -->
-            <div id="practice-indicator" style="display: none; position: absolute; top: 20px; right: 20px; background: rgba(255, 165, 0, 0.9); color: white; padding: 10px 15px; border-radius: 5px; font-weight: bold; z-index: 1000;">
-                Practice Round
-            </div>
             
             <!-- Image Container -->
             <div id="image-container">
@@ -123,31 +107,57 @@
             <button id="continue-trial" class="continue-button" style="display: none;">Continue to Next Trial</button>
         </div>
 
-        <!-- Transition Screen (between practice and main experiment) -->
-        <div id="transition-screen" class="screen">
+        <!-- Round 1 Complete Screen -->
+        <div id="round1-complete-screen" class="screen">
             <div class="content-wrapper">
-                <h2>Ready for Main Experiment</h2>
-                <div class="instructions">
-                    <p>Great job with the practice!</p>
-                    <p>You are now ready to begin the main experiment.</p>
-                    <p>Each trial lasts 15 seconds. Move your mouse naturally to look at the images.</p>
-                    <p>When you're ready, press <strong>SPACEBAR</strong> or click the button below to begin.</p>
+                <h2>Round 1 Complete!</h2>
+                <div class="round-summary">
+                    <p>✅ Round 1 of 3 completed</p>
+                    <p>📊 Trials completed: <span id="round1-trials">20</span></p>
+                    <p>⏱️ Time elapsed: <span id="round1-time">0:00</span></p>
                 </div>
-                <button id="start-main-experiment" class="primary-button">Start Main Experiment</button>
+                <div class="instructions">
+                    <p><strong>Please proceed to your next experiment.</strong></p>
+                    <p>When you're ready to continue with Round 2 of this experiment, click the button below.</p>
+                </div>
+                <button id="proceed-round2" class="primary-button">Proceed to Round 2</button>
+            </div>
+        </div>
+
+        <!-- Round 2 Complete Screen -->
+        <div id="round2-complete-screen" class="screen">
+            <div class="content-wrapper">
+                <h2>Round 2 Complete!</h2>
+                <div class="round-summary">
+                    <p>✅ Round 2 of 3 completed</p>
+                    <p>📊 Trials completed: <span id="round2-trials">40</span></p>
+                    <p>⏱️ Time elapsed: <span id="round2-time">0:00</span></p>
+                </div>
+                <div class="instructions">
+                    <p><strong>Please proceed to your next experiment.</strong></p>
+                    <p>When you're ready to continue with Round 3 (final round) of this experiment, click the button below.</p>
+                </div>
+                <button id="proceed-round3" class="primary-button">Proceed to Round 3</button>
             </div>
         </div>
 
         <!-- End Screen -->
         <div id="end-screen" class="screen">
             <div class="content-wrapper">
-                <h2>Experiment Complete!</h2>
-                <p>Thank you for participating in this experiment.</p>
-                <p>Your data has been collected and will be downloaded automatically.</p>
-                <p><strong>Click the buttons below to download your data and individual trial heatmaps.</strong></p>
+                <h2>All Rounds Complete!</h2>
+                <div class="experiment-summary">
+                    <p>🎉 Congratulations! You have completed all 3 rounds.</p>
+                    <p>📊 Total trials completed: <span id="total-trials">60</span></p>
+                    <p>⏱️ Total experiment time: <span id="total-time">0:00</span></p>
+                </div>
+                <div class="instructions">
+                    <p><strong>Data Collection Complete</strong></p>
+                    <p>Please click the buttons below to download your data files for analysis.</p>
+                </div>
                 <div id="download-buttons">
-                    <button id="download-trial-data" class="primary-button">Download Trial Data</button>
-                    <button id="download-mouse-data" class="primary-button">Download Mouse Data</button>
-                    <button id="download-trial-heatmaps" class="primary-button">Download Trial Heatmaps (ZIP)</button>
+                    <button id="download-trial-data" class="primary-button">📄 Download All Trial Data (CSV)</button>
+                    <button id="download-mouse-data" class="primary-button">🖱️ Download All Mouse Data (CSV)</button>
+                    <button id="download-trial-heatmaps" class="primary-button">🔥 Download All Heatmaps (ZIP)</button>
                 </div>
                 <div id="heatmap-progress" style="display: none; margin: 20px 0; padding: 15px; background: rgba(0,0,0,0.1); border-radius: 5px;">
                     <div style="margin-bottom: 10px; font-weight: bold;" id="heatmap-progress-text">Generating heatmaps...</div>
@@ -182,7 +192,6 @@
     <!-- Your custom scripts -->
     <script src="js/data-manager.js?v=2025-07-28-fix"></script>
     <script src="js/image-manager.js?v=2025-07-28-fix"></script>
-    <script src="js/practice-manager.js?v=2025-07-28-fix"></script>
     <script src="js/experiment.js?v=2025-07-28-fix"></script>
 
     <script type="module">
