@@ -146,7 +146,7 @@
     </div>
 
     <!-- MouseView Overlay -->
-    <div id="mouseview-overlay" class="mouseview-overlay"></div>
+    <canvas id="mouseview-overlay" class="mouseview-overlay"></canvas>
 
     <!-- Scripts -->
     <!-- JSZip library for creating ZIP files -->
@@ -161,6 +161,21 @@
     <script type="module">
         // Configure MouseView.js parameters and initialize experiment
         window.addEventListener('load', () => {
+            // Initialize canvas dimensions for MouseView.js
+            const canvas = document.getElementById('mouseview-overlay');
+            if (canvas) {
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+                
+                // Update canvas size when window is resized
+                window.addEventListener('resize', () => {
+                    canvas.width = window.innerWidth;
+                    canvas.height = window.innerHeight;
+                });
+                
+                console.log('Canvas initialized:', canvas.width + 'x' + canvas.height);
+            }
+            
             // Basic MouseView.js initialization (configuration happens only during trials)
             if (typeof mouseview !== 'undefined') {
                 // Only set basic timing parameters globally
