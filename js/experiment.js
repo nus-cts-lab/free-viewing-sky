@@ -873,17 +873,11 @@ class ExperimentController {
     showInterRoundScreen() {
         const roundElapsed = this.getRoundElapsedTime();
         
-        // Update round summary in the appropriate screen
-        const roundTrialsElement = document.getElementById(`round${this.currentRound}-trials`);
-        const roundTimeElement = document.getElementById(`round${this.currentRound}-time`);
-        
-        if (roundTrialsElement) roundTrialsElement.textContent = this.trialsPerRound;
-        if (roundTimeElement) roundTimeElement.textContent = this.formatTime(roundElapsed);
-        
         // Show the appropriate inter-round screen
         this.showScreen(`round${this.currentRound}-complete`);
         
         console.log(`Inter-round screen displayed for Round ${this.currentRound}`);
+        console.log(`Round ${this.currentRound} completed: ${this.trialsPerRound} trials in ${this.formatTime(roundElapsed)}`);
     }
 
     async proceedToNextRound() {
