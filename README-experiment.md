@@ -57,7 +57,7 @@ Web-based psychological experiment using mouse spotlight to simulate eye trackin
 
 ## Controls & Configuration
 
-**Keyboard**: SPACE (start/continue), ESC (emergency exit), Ctrl+D (debug mode)
+**Keyboard**: SPACE (start/continue), ESC (emergency exit)
 
 **Configuration** (`stimuli-config.json`): Modify image sets, trial count, timing parameters
 

@@ -36,14 +36,10 @@ class ExperimentController {
         
         // Experiment settings
         this.settings = {
-            fixationDuration: 2000, // ms (2 seconds)
             imageViewingTime: 15000, // 15 seconds automatic progression
             enableMouseTracking: true,
             enablePractice: false,  // DISABLED - No practice round
-            debug: false,
             showTimer: false, // Hide timer during main trials
-            showProgress: true, // Show progress for rounds
-            showPracticeTimer: false, // Hide timer during practice trials
             apertureSize: '20%' // Aperture size for mouse spotlight (increased from 12%)
         };
         
@@ -177,7 +173,6 @@ class ExperimentController {
             // No config-based settings update needed with new-data.json structure
             console.log('3-Round experiment settings:');
             console.log('- Image viewing time:', this.settings.imageViewingTime, 'ms');
-            console.log('- Fixation duration:', this.settings.fixationDuration, 'ms');
             console.log('- Rounds:', this.totalRounds);
             console.log('- Trials per round:', this.trialsPerRound);
             
@@ -284,29 +279,6 @@ class ExperimentController {
         }
     }
 
-    async showFixation() {
-        const fixationCross = document.getElementById('fixation-cross');
-        const imageContainer = document.getElementById('image-container');
-        
-        // Hide images and show fixation
-        this.imageManager.hideImages(imageContainer);
-        fixationCross.classList.add('active');
-        
-        // Disable MouseView during fixation so cross is fully visible
-        try {
-            if (typeof mouseview !== 'undefined' && mouseview.removeAll) {
-                mouseview.removeAll();
-            }
-        } catch (error) {
-            console.log('MouseView removeAll skipped during fixation');
-        }
-        
-        // Wait for fixation duration
-        await this.delay(this.settings.fixationDuration);
-        
-        // Hide fixation
-        fixationCross.classList.remove('active');
-    }
     
     
     async waitForUserProgression() {
@@ -343,40 +315,6 @@ class ExperimentController {
         // This will be handled by the promise in waitForUserProgression
     }
     
-    updateProgress(current, total) {
-        // Early exit if progress should be hidden
-        if (!this.settings.showProgress) {
-            console.log('Progress indicator hidden by settings');
-            return;
-        }
-        
-        console.log('=== UPDATE PROGRESS DEBUG ===');
-        console.log('Called with current:', current, 'total:', total);
-        
-        const currentTrialElement = document.getElementById('current-trial');
-        const totalTrialsElement = document.getElementById('total-trials');
-        
-        console.log('Current trial element:', currentTrialElement);
-        console.log('Total trials element:', totalTrialsElement);
-        
-        if (currentTrialElement) {
-            currentTrialElement.textContent = current;
-            console.log('Set current trial to:', current);
-        }
-        if (totalTrialsElement) {
-            totalTrialsElement.textContent = total;
-            console.log('Set total trials to:', total);
-        }
-        
-        // Check if progress indicator is visible
-        const progressIndicator = document.getElementById('progress-indicator');
-        if (progressIndicator) {
-            console.log('Progress indicator display:', progressIndicator.style.display);
-            console.log('Progress indicator visibility:', progressIndicator.style.visibility);
-        }
-        
-        console.log('=== END UPDATE PROGRESS DEBUG ===');
-    }
     
     async finishExperiment() {
         this.isExperimentRunning = false;
@@ -468,13 +406,6 @@ class ExperimentController {
                 }
                 break;
                 
-            case 'KeyD':
-                if (event.ctrlKey || event.metaKey) {
-                    // Ctrl+D or Cmd+D for debug mode
-                    event.preventDefault();
-                    this.toggleDebugMode();
-                }
-                break;
         }
     }
     
@@ -501,17 +432,6 @@ class ExperimentController {
         console.log('Emergency exit - partial data saved');
     }
     
-    toggleDebugMode() {
-        this.settings.debug = !this.settings.debug;
-        
-        // Toggle debug elements
-        const labels = document.querySelectorAll('.image-label');
-        labels.forEach(label => {
-            label.classList.toggle('show-labels', this.settings.debug);
-        });
-        
-        console.log('Debug mode:', this.settings.debug ? 'ON' : 'OFF');
-    }
     
     showScreen(screenName) {
         // Hide all screens
@@ -814,23 +734,9 @@ class ExperimentController {
             practiceIndicator.style.display = 'none';
         }
         
-        // Show progress indicator for rounds
-        const mainProgressIndicator = document.getElementById('progress-indicator');
-        if (mainProgressIndicator) {
-            mainProgressIndicator.classList.remove('hide-during-practice');
-            
-            if (this.settings.showProgress) {
-                mainProgressIndicator.style.display = 'block';
-                mainProgressIndicator.style.visibility = 'visible';
-                mainProgressIndicator.style.opacity = '1';
-                mainProgressIndicator.style.zIndex = '200';
-            } else {
-                mainProgressIndicator.style.display = 'none';
-            }
-        }
         
-        // Update progress display
-        this.updateRoundProgress();
+        // Log progress to console
+        this.logRoundProgress();
     }
 
     async runRoundTrials() {
@@ -860,8 +766,8 @@ class ExperimentController {
                 // Continue with next trial
             }
             
-            // Update progress
-            this.updateRoundProgress();
+            // Log progress
+            this.logRoundProgress();
             
             // Brief inter-trial interval
             await this.delay(250);
@@ -1009,16 +915,9 @@ class ExperimentController {
             console.log('MouseView cleanup completed with minor error:', error.message);
         }
         
-        // Calculate total experiment time
+        // Calculate total experiment time for console logging
         const totalTime = this.globalTrialCounter > 0 ? 
             (performance.now() - this.dataManager.experimentStartTime) / 1000 : 0;
-        
-        // Update final screen summary
-        const totalTrialsElement = document.getElementById('total-trials');
-        const totalTimeElement = document.getElementById('total-time');
-        
-        if (totalTrialsElement) totalTrialsElement.textContent = this.globalTrialCounter;
-        if (totalTimeElement) totalTimeElement.textContent = this.formatTime(totalTime);
         
         // Show end screen with manual download options
         this.showScreen('end');
@@ -1050,17 +949,7 @@ class ExperimentController {
         }
     }
 
-    updateRoundProgress() {
-        const roundElement = document.getElementById('current-round');
-        const totalElement = document.getElementById('total-rounds'); 
-        const trialElement = document.getElementById('current-trial');
-        const totalTrialElement = document.getElementById('total-trials');
-        
-        if (roundElement) roundElement.textContent = this.currentRound;
-        if (totalElement) totalElement.textContent = this.totalRounds;
-        if (trialElement) trialElement.textContent = this.globalTrialCounter;
-        if (totalTrialElement) totalTrialElement.textContent = this.totalRounds * this.trialsPerRound;
-        
+    logRoundProgress() {
         console.log(`Round ${this.currentRound}/${this.totalRounds}, Trial ${this.roundTrialCounter}/${this.trialsPerRound}, Global: ${this.globalTrialCounter}`);
     }
 

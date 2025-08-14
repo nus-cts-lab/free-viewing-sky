@@ -34,11 +34,11 @@
                 <div class="instructions">
                     <p>In this experiment, you will view a series of images using your mouse cursor as a "spotlight" of attention. Only the area around your cursor will be visible clearly, while other areas will be blurred.</p>
                     
-                    <p>You will complete 3 rounds of experiments with 20 trials each (60 trials total). Move your mouse to look at the images - it acts as your "spotlight" of attention.</p>
+                    <p>You will complete 3 rounds of experiments with 20 trials each. Move your mouse to look at the images - it acts as your "spotlight" of attention.</p>
                     
-                    <p>Each trial begins with a fixation cross (+) in the center. Focus your mouse cursor on this cross. Then, four images will appear in the corners of the screen for 15 seconds each.</p>
+                    <p>Each trial begins when you click the "Start" or "Next" button. Four images will then appear in the four quadrants of the screen.</p>
                     
-                    <p><strong>Important:</strong> Move your mouse cursor naturally to explore the images, just as you would move your eyes to look at different parts of the images.</p>
+                    <p><strong>Important:</strong> Move your mouse cursor naturally to explore the images.</p>
                     
                     <p>When you are ready, press <strong>SPACEBAR</strong> to begin.</p>
                 </div>
@@ -66,9 +66,6 @@
 
         <!-- Main Experiment Screen -->
         <div id="experiment-screen" class="screen">
-            <!-- Fixation Cross -->
-            <div id="fixation-cross" class="fixation-cross">+</div>
-            
             <!-- Center Start Button for First Main Trial -->
             <div id="main-start-button" class="center-button" style="display: none;">
                 <button class="start-button">Start</button>
@@ -81,11 +78,6 @@
                 <p class="button-instruction">Click to continue to next trial</p>
             </div>
             
-            <!-- Progress Indicator -->
-            <div id="progress-indicator">
-                <span id="current-trial">1</span> / <span id="total-trials">20</span>
-            </div>
-            
             
             <!-- Image Container -->
             <div id="image-container">
@@ -94,13 +86,6 @@
                 <img id="bottom-left-image" class="stimulus-image" alt="Bottom Left Image">
                 <img id="bottom-right-image" class="stimulus-image" alt="Bottom Right Image">
                 
-                <!-- Image category labels (for debugging - can be hidden) -->
-                <div class="image-labels">
-                    <span id="top-left-label" class="image-label">Dysphoric</span>
-                    <span id="top-right-label" class="image-label">Threat</span>
-                    <span id="bottom-left-label" class="image-label">Positive</span>
-                    <span id="bottom-right-label" class="image-label">Neutral</span>
-                </div>
             </div>
             
             <!-- Continue Button (for manual progression) -->
@@ -145,11 +130,7 @@
         <div id="end-screen" class="screen">
             <div class="content-wrapper">
                 <h2>All Rounds Complete!</h2>
-                <div class="experiment-summary">
-                    <p>🎉 Congratulations! You have completed all 3 rounds.</p>
-                    <p>📊 Total trials completed: <span id="total-trials">60</span></p>
-                    <p>⏱️ Total experiment time: <span id="total-time">0:00</span></p>
-                </div>
+                <p>🎉 Congratulations! You have completed all 3 rounds.</p>
                 <div class="instructions">
                     <p><strong>Data Collection Complete</strong></p>
                     <p>Please click the buttons below to download your data files for analysis.</p>
