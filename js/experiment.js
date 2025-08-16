@@ -123,8 +123,6 @@ class ExperimentController {
         const downloadMouseBtn = document.getElementById('download-mouse-data');
         const downloadParticipantBtn = document.getElementById('download-participant-info');
         const downloadTrialHeatmapsBtn = document.getElementById('download-trial-heatmaps');
-        const restartBtn = document.getElementById('restart-experiment');
-        
         if (downloadTrialBtn) {
             downloadTrialBtn.addEventListener('click', () => this.dataManager.exportTrialData());
         }
@@ -136,9 +134,6 @@ class ExperimentController {
         }
         if (downloadTrialHeatmapsBtn) {
             downloadTrialHeatmapsBtn.addEventListener('click', () => this.generateTrialHeatmaps());
-        }
-        if (restartBtn) {
-            restartBtn.addEventListener('click', () => this.restartExperiment());
         }
         
         
@@ -420,41 +415,6 @@ class ExperimentController {
         console.log('Summary:', this.dataManager.getSummaryStats());
     }
     
-    restartExperiment() {
-        // Reset 3-round system state
-        this.currentRound = 1;
-        this.roundTrialCounter = 0;
-        this.globalTrialCounter = 0;
-        this.usedImages.clear();
-        this.roundStartTime = null;
-        
-        // Reset legacy state
-        this.currentState = 'welcome';
-        this.currentTrial = 0;
-        this.fillerTrialCounter = 0;
-        this.globalTrialNumber = 0;
-        this.imageTrialCounter = 0;
-        this.experimentStarted = false;
-        this.isExperimentRunning = false;
-        
-        // Clear data
-        this.dataManager.clearData();
-        
-        // Reset UI (cursor was never hidden)
-        // document.body.classList.remove('experiment-active'); // Not needed anymore
-        try {
-            if (typeof mouseview !== 'undefined' && mouseview.removeAll) {
-                mouseview.removeAll();
-            }
-        } catch (error) {
-            console.log('MouseView removeAll skipped during restart (error):', error.message);
-        }
-        
-        // Show welcome screen
-        this.showScreen('welcome');
-        
-        console.log('Experiment restarted');
-    }
     
     handleKeyPress(event) {
         switch (event.code) {
