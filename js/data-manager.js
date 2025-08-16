@@ -268,6 +268,30 @@ class DataManager {
         
         mouseData.forEach((point, pointIndex) => {
             if (point && typeof point.x === 'number' && typeof point.y === 'number') {
+                
+                // Calculate movement metrics
+                let velocity = 0;
+                let distanceFromPrevious = 0;
+                
+                if (pointIndex > 0) {
+                    const prevPoint = mouseData[pointIndex - 1];
+                    if (prevPoint && typeof prevPoint.x === 'number' && typeof prevPoint.y === 'number') {
+                        // Calculate distance (pixels)
+                        const dx = point.x - prevPoint.x;
+                        const dy = point.y - prevPoint.y;
+                        distanceFromPrevious = Math.sqrt(dx * dx + dy * dy);
+                        
+                        // Calculate velocity (pixels/millisecond)
+                        const currentTime = point.time || 0;
+                        const prevTime = prevPoint.time || 0;
+                        const timeDiff = currentTime - prevTime;
+                        
+                        if (timeDiff > 0) {
+                            velocity = distanceFromPrevious / timeDiff;
+                        }
+                    }
+                }
+                
                 const mouseRecord = {
                     // Trial identification
                     trial_idx: trialIndex + 1,
@@ -282,16 +306,16 @@ class DataManager {
                     mouse_x: Math.round(point.x),
                     mouse_y: Math.round(point.y),
                     
-                    // Timing
+                    // Timing - FIXED to use actual MouseView time
                     timestamp: point.timestamp || Date.now(),
-                    time_in_trial: point.timeInTrial || 0,
+                    time_in_trial: point.time || 0,
                     
                     // Screen quadrant
                     quadrant: this.getQuadrant(point.x, point.y),
                     
-                    // Movement metrics (if available)
-                    velocity: point.velocity || 0,
-                    distance_from_previous: point.distanceFromPrevious || 0
+                    // Movement metrics - CALCULATED from actual data
+                    velocity: Math.round(velocity * 1000) / 1000,  // Round to 3 decimal places
+                    distance_from_previous: Math.round(distanceFromPrevious * 100) / 100  // Round to 2 decimal places
                 };
                 
                 this.mouseTrackingData.push(mouseRecord);

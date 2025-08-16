@@ -50,3 +50,8 @@ node_modules/
 
 # README files
 IMPLEMENTATION_PLAN.md
+
+# Test files
+test-*.html
+*test*.js
+console-test-*.js
