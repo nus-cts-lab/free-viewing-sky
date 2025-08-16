@@ -22,6 +22,9 @@ class ExperimentController {
         // Timing
         this.roundStartTime = null;
         
+        // Password protection state
+        this.pendingRound = null;
+        
         // Legacy counters (to be removed eventually)
         this.currentTrial = 0;
         this.maxTrials = 12;
@@ -72,11 +75,24 @@ class ExperimentController {
     
     initializeComponents() {
         // Initialize managers (removed practice manager)
+        console.log('🔄 Creating ImageManager instance...');
         this.imageManager = new ImageManager();
+        console.log('✅ ImageManager created:', this.imageManager);
+        console.log('🔍 Checking for initializeDynamicPositioning method:', typeof this.imageManager.initializeDynamicPositioning);
+        
         this.dataManager = new DataManager();
+        
+        // Initialize dynamic positioning system
+        console.log('🚀 Calling initializeDynamicPositioning...');
+        this.imageManager.initializeDynamicPositioning();
+        
+        // Expose imageManager globally for testing
+        window.imageManager = this.imageManager;
         
         console.log('All components initialized - MouseView.js will be activated during trials');
         console.log('3-Round System: Practice disabled, direct to experiment');
+        console.log('Dynamic positioning system activated for responsive image layout');
+        console.log('Test dynamic positioning: window.imageManager.testDynamicPositioning()');
     }
     
     bindEvents() {
@@ -125,12 +141,60 @@ class ExperimentController {
         // Inter-round progression buttons
         const proceedRound2Btn = document.getElementById('proceed-round2');
         const proceedRound3Btn = document.getElementById('proceed-round3');
+        const startRound2Btn = document.getElementById('start-round2');
+        const startRound3Btn = document.getElementById('start-round3');
         
         if (proceedRound2Btn) {
-            proceedRound2Btn.addEventListener('click', () => this.proceedToNextRound());
+            proceedRound2Btn.addEventListener('click', () => this.showRoundInstructions(2));
         }
         if (proceedRound3Btn) {
-            proceedRound3Btn.addEventListener('click', () => this.proceedToNextRound());
+            proceedRound3Btn.addEventListener('click', () => this.showRoundInstructions(3));
+        }
+        if (startRound2Btn) {
+            startRound2Btn.addEventListener('click', () => this.showPasswordScreen(2));
+        }
+        if (startRound3Btn) {
+            startRound3Btn.addEventListener('click', () => this.showPasswordScreen(3));
+        }
+        
+        // Round 2 password events
+        const round2PasswordSubmitBtn = document.getElementById('round2-password-submit');
+        const round2PasswordCancelBtn = document.getElementById('round2-password-cancel');
+        const round2PasswordInput = document.getElementById('round2-password-input');
+        
+        if (round2PasswordSubmitBtn) {
+            round2PasswordSubmitBtn.addEventListener('click', () => this.handlePasswordSubmit(2));
+        }
+        if (round2PasswordCancelBtn) {
+            round2PasswordCancelBtn.addEventListener('click', () => this.showRoundInstructions(2));
+        }
+        if (round2PasswordInput) {
+            round2PasswordInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    this.handlePasswordSubmit(2);
+                }
+            });
+        }
+        
+        // Round 3 password events
+        const round3PasswordSubmitBtn = document.getElementById('round3-password-submit');
+        const round3PasswordCancelBtn = document.getElementById('round3-password-cancel');
+        const round3PasswordInput = document.getElementById('round3-password-input');
+        
+        if (round3PasswordSubmitBtn) {
+            round3PasswordSubmitBtn.addEventListener('click', () => this.handlePasswordSubmit(3));
+        }
+        if (round3PasswordCancelBtn) {
+            round3PasswordCancelBtn.addEventListener('click', () => this.showRoundInstructions(3));
+        }
+        if (round3PasswordInput) {
+            round3PasswordInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    this.handlePasswordSubmit(3);
+                }
+            });
         }
         
         console.log('Event listeners bound (including inter-round buttons)');
@@ -843,11 +907,11 @@ class ExperimentController {
             console.error('Error collecting mouse data:', error);
         }
         
-        // Record trial data
+        // Record trial data BEFORE hiding images (so image bounds are still available)
         this.dataManager.recordTrialData(trialInfo, imageData, mouseData);
         this.dataManager.recordMouseData(mouseData, this.globalTrialCounter - 1, trialType, this.currentRound, this.roundTrialCounter);
         
-        // Hide images
+        // Hide images AFTER recording data
         this.imageManager.hideImages(imageContainer);
         
         console.log(`Trial ${this.roundTrialCounter} of Round ${this.currentRound} completed`);
@@ -885,10 +949,119 @@ class ExperimentController {
         
         const nextRound = this.currentRound + 1;
         if (nextRound <= this.totalRounds) {
-            await this.startRound(nextRound);
+            // Show instructions first instead of starting round directly
+            this.showRoundInstructions(nextRound);
         } else {
             console.error('Attempted to proceed beyond final round');
             await this.finishAllRounds();
+        }
+    }
+    
+    /**
+     * Show instruction screen for the specified round
+     */
+    showRoundInstructions(roundNumber) {
+        console.log(`Showing instructions for Round ${roundNumber}`);
+        
+        if (roundNumber === 2) {
+            this.showScreen('round2-instructions');
+        } else if (roundNumber === 3) {
+            this.showScreen('round3-instructions');
+        } else {
+            console.error(`Invalid round number for instructions: ${roundNumber}`);
+            // Fallback to starting round directly
+            this.startRoundAfterInstructions(roundNumber);
+        }
+    }
+    
+    /**
+     * Start the specified round after instructions have been shown
+     */
+    async startRoundAfterInstructions(roundNumber) {
+        console.log(`Starting Round ${roundNumber} after instructions`);
+        await this.startRound(roundNumber);
+    }
+    
+    /**
+     * Show password screen for the specified round
+     */
+    showPasswordScreen(roundNumber) {
+        console.log(`Showing password screen for Round ${roundNumber}`);
+        
+        if (roundNumber === 2) {
+            this.showScreen('round2-password');
+            
+            // Focus password input
+            setTimeout(() => {
+                const input = document.getElementById('round2-password-input');
+                if (input) {
+                    input.focus();
+                }
+            }, 100);
+        } else if (roundNumber === 3) {
+            this.showScreen('round3-password');
+            
+            // Focus password input
+            setTimeout(() => {
+                const input = document.getElementById('round3-password-input');
+                if (input) {
+                    input.focus();
+                }
+            }, 100);
+        } else {
+            console.error(`Invalid round number for password screen: ${roundNumber}`);
+            // Fallback to starting round directly
+            this.startRoundAfterInstructions(roundNumber);
+        }
+    }
+    
+    /**
+     * Handle password submission for specific round
+     */
+    handlePasswordSubmit(roundNumber) {
+        const inputId = `round${roundNumber}-password-input`;
+        const errorId = `round${roundNumber}-password-error`;
+        
+        const input = document.getElementById(inputId);
+        const errorDiv = document.getElementById(errorId);
+        
+        if (!input) {
+            console.error(`Password input not found for Round ${roundNumber}`);
+            return;
+        }
+        
+        const enteredPassword = input.value.trim();
+        const correctPassword = 'ctsfreeviewing';
+        
+        if (enteredPassword === correctPassword) {
+            console.log(`Password correct for Round ${roundNumber}`);
+            
+            // Clear input and error
+            input.value = '';
+            if (errorDiv) {
+                errorDiv.style.display = 'none';
+            }
+            
+            // Start the round
+            this.startRoundAfterInstructions(roundNumber);
+        } else {
+            console.log(`Incorrect password entered for Round ${roundNumber}`);
+            
+            // Show error message
+            if (errorDiv) {
+                errorDiv.style.display = 'block';
+            }
+            
+            // Clear input and refocus
+            input.value = '';
+            input.focus();
+            
+            // Hide error after 3 seconds
+            setTimeout(() => {
+                if (errorDiv) {
+                    errorDiv.style.display = 'none';
+                }
+            }, 3000);
         }
     }
 

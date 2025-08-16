@@ -5,6 +5,12 @@
     box-sizing: border-box;
 }
 
+/* CSS Custom Properties for Dynamic Positioning */
+:root {
+    --dynamic-image-width: 380px;
+    --dynamic-image-height: 260px;
+}
+
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     background-color: #000;
@@ -249,11 +255,11 @@ input[type="text"]:focus {
     height: 100%;
 }
 
-/* Stimulus Images */
+/* Stimulus Images - Enhanced for Dynamic Positioning */
 .stimulus-image {
     position: absolute;
-    max-width: 380px;
-    max-height: 260px;
+    max-width: var(--dynamic-image-width, 380px);
+    max-height: var(--dynamic-image-height, 260px);
     width: auto;
     height: auto;
     object-fit: contain;
@@ -278,7 +284,7 @@ input[type="text"]:focus {
     transform: scale(1.02);
 }
 
-/* Convert normalized coordinates to CSS positions with increased vertical spacing */
+/* Default fallback positions (used when dynamic positioning is disabled) */
 #top-left-image {
     top: 15%;
     left: 20%;
@@ -495,4 +501,46 @@ body.experiment-active .center-button {
 
 body.experiment-active .center-button * {
     cursor: pointer !important;
+}
+
+/* Password Screen Input Styles */
+input[type="password"] {
+    width: 100%;
+    padding: 12px 15px;
+    font-size: 1.1em;
+    border: 2px solid #333;
+    border-radius: 6px;
+    background-color: #2a2a2a;
+    color: #fff;
+    text-align: center;
+    letter-spacing: 2px;
+    margin-bottom: 15px;
+}
+
+input[type="password"]:focus {
+    outline: none;
+    border-color: #4CAF50;
+    box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.2);
+}
+
+.error-message {
+    color: #ff4444;
+    background-color: rgba(255, 68, 68, 0.1);
+    border: 1px solid rgba(255, 68, 68, 0.3);
+    padding: 10px 15px;
+    border-radius: 6px;
+    margin: 15px 0;
+    font-size: 0.95em;
+}
+
+/* Button Group Styles */
+.button-group {
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+    margin-top: 25px;
+}
+
+.button-group button {
+    min-width: 120px;
 }

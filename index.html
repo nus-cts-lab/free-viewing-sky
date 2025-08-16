@@ -97,6 +97,27 @@
             </div>
         </div>
 
+        <!-- Round 2 Instructions Screen -->
+        <div id="round2-instructions-screen" class="screen">
+            <div class="content-wrapper">
+                <h2>Round 2 Instructions</h2>
+                <div class="instructions">
+                    <p>You're about to begin <strong>Round 2 of 3</strong>.</p>
+                    
+                    <p>This round works exactly like Round 1:</p>
+                    <ul>
+                        <li>Use your mouse cursor as a "spotlight" to explore images</li>
+                        <li>Four images will appear in each trial</li>
+                        <li>Move naturally to look at what interests you</li>
+                        <li>Each trial lasts 15 seconds</li>
+                    </ul>
+                    
+                    <p>Click the button below when you're ready to start.</p>
+                </div>
+                <button id="start-round2" class="primary-button">Start Round 2</button>
+            </div>
+        </div>
+
         <!-- Round 2 Complete Screen -->
         <div id="round2-complete-screen" class="screen">
             <div class="content-wrapper">
@@ -106,6 +127,77 @@
                     <p>When you're ready to continue with Round 3 (final round) of this experiment, click the button below.</p>
                 </div>
                 <button id="proceed-round3" class="primary-button">Proceed to Round 3</button>
+            </div>
+        </div>
+
+        <!-- Round 3 Instructions Screen -->
+                </div>
+        
+        <!-- Round 3 Instructions Screen -->
+        <div id="round3-instructions-screen" class="screen">
+            <div class="content-wrapper">
+                <h1>Round 3 Instructions</h1>
+                <div class="instructions">
+                    <div class="experiment-summary">
+                        <h3>📍 You are about to start the final round</h3>
+                        <p><strong>Progress:</strong> You have completed 2 rounds. This is the final round.</p>
+                    </div>
+                    
+                    <p><strong>Reminder of the task:</strong></p>
+                    <p>1) Use your mouse cursor as a "spotlight" to explore the images</p>
+                    <p>2) Each trial shows 4 images in the corners of the screen</p>
+                    <p>3) Move your mouse naturally to look at whatever interests you</p>
+                    <p>4) Each trial lasts 15 seconds and advances automatically</p>
+                    
+                    <p>When you're ready to begin the final round, click the button below:</p>
+                </div>
+                <button id="start-round3" class="primary-button">Start Round 3</button>
+            </div>
+        </div>
+        
+        <!-- Round 2 Password Screen -->
+        <div id="round2-password-screen" class="screen">
+            <div class="content-wrapper">
+                <h2>Round 2 Access Required</h2>
+                <div class="instructions">
+                    <p>Please enter the password to proceed to Round 2:</p>
+                    
+                    <div class="form-group">
+                        <input type="password" id="round2-password-input" placeholder="Enter password..." autocomplete="off">
+                    </div>
+                    
+                    <div id="round2-password-error" class="error-message" style="display: none;">
+                        Incorrect password. Please try again.
+                    </div>
+                    
+                    <div class="button-group">
+                        <button id="round2-password-cancel" class="secondary-button">Back to Instructions</button>
+                        <button id="round2-password-submit" class="primary-button">Continue</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Round 3 Password Screen -->
+        <div id="round3-password-screen" class="screen">
+            <div class="content-wrapper">
+                <h2>Round 3 Access Required</h2>
+                <div class="instructions">
+                    <p>Please enter the password to proceed to Round 3:</p>
+                    
+                    <div class="form-group">
+                        <input type="password" id="round3-password-input" placeholder="Enter password..." autocomplete="off">
+                    </div>
+                    
+                    <div id="round3-password-error" class="error-message" style="display: none;">
+                        Incorrect password. Please try again.
+                    </div>
+                    
+                    <div class="button-group">
+                        <button id="round3-password-cancel" class="secondary-button">Back to Instructions</button>
+                        <button id="round3-password-submit" class="primary-button">Continue</button>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -154,11 +246,10 @@
     <!-- Official MouseView.js library -->
     <script src="https://mouseview-docs.netlify.app/MouseView.js" type="module"></script>
     <!-- Your custom scripts -->
-    <script src="js/data-manager.js?v=2025-07-28-fix"></script>
-    <script src="js/image-manager.js?v=2025-07-28-fix"></script>
-    <script src="js/experiment.js?v=2025-07-28-fix"></script>
-
-    <script type="module">
+    <!-- Your custom scripts -->
+    <script src="js/data-manager.js?v=2025-08-15-round-instructions"></script>
+    <script src="js/image-manager.js?v=2025-08-15-round-instructions"></script>
+    <script src="js/experiment.js?v=2025-08-15-round-instructions"></script>    <script type="module">
         // Configure MouseView.js parameters and initialize experiment
         window.addEventListener('load', () => {
             // Initialize canvas dimensions for MouseView.js

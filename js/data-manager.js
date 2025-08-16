@@ -211,12 +211,28 @@ class DataManager {
                 trialRecord.total_mouse_distance = 0;
             }
             
-            // Calculate time spent in each quadrant
+            // Calculate time spent in each quadrant (legacy)
             const quadrantTimes = this.calculateQuadrantTimes(mouseData);
             trialRecord.time_top_left = quadrantTimes.topLeft;
             trialRecord.time_top_right = quadrantTimes.topRight;
             trialRecord.time_bottom_left = quadrantTimes.bottomLeft;
             trialRecord.time_bottom_right = quadrantTimes.bottomRight;
+            
+            // NEW: Calculate time spent on each specific image
+            const imageTimes = this.calculateImageViewingTimes(mouseData, imageData, trialInfo.trialType);
+            
+            // Add image-specific timing data to trial record
+            if (trialInfo.trialType === 'image') {
+                trialRecord.time_on_dysphoric = imageTimes.dysphoric || 0;
+                trialRecord.time_on_threat = imageTimes.threat || 0;
+                trialRecord.time_on_positive = imageTimes.positive || 0;
+                trialRecord.time_on_filler = imageTimes.filler || 0;
+            } else if (trialInfo.trialType === 'filler') {
+                trialRecord.time_on_filler_1 = imageTimes.filler1 || 0;
+                trialRecord.time_on_filler_2 = imageTimes.filler2 || 0;
+                trialRecord.time_on_filler_3 = imageTimes.filler3 || 0;
+                trialRecord.time_on_filler_4 = imageTimes.filler4 || 0;
+            }
             
         } else {
             // Default values when no mouse data
@@ -325,6 +341,98 @@ class DataManager {
     }
     
     /**
+     * Calculate time spent viewing each specific image based on mouse position and image bounds
+     * This provides more precise timing than quadrant-based calculation
+     */
+    calculateImageViewingTimes(mouseData, imageData, trialType) {
+        const imageTimes = {};
+        
+        if (!mouseData || mouseData.length === 0) {
+            // Return zero times for all images
+            if (trialType === 'image') {
+                return { dysphoric: 0, threat: 0, positive: 0, filler: 0 };
+            } else if (trialType === 'filler') {
+                return { filler1: 0, filler2: 0, filler3: 0, filler4: 0 };
+            }
+            return {};
+        }
+        
+        // Get current image positions and sizes from the DOM
+        const imageContainer = document.getElementById('image-container');
+        if (!imageContainer) {
+            console.warn('Image container not found for timing calculation');
+            return imageTimes;
+        }
+        
+        const imageElements = {
+            'top-left': imageContainer.querySelector('#top-left-image'),
+            'top-right': imageContainer.querySelector('#top-right-image'),
+            'bottom-left': imageContainer.querySelector('#bottom-left-image'),
+            'bottom-right': imageContainer.querySelector('#bottom-right-image')
+        };
+        
+        // Get bounding rectangles for each image
+        const imageBounds = {};
+        Object.entries(imageElements).forEach(([position, element]) => {
+            if (element && element.style.display !== 'none') {
+                const rect = element.getBoundingClientRect();
+                imageBounds[position] = {
+                    left: rect.left,
+                    right: rect.right,
+                    top: rect.top,
+                    bottom: rect.bottom
+                };
+            }
+        });
+        
+        // Map image categories to their positions
+        const imagePositionMap = {};
+        if (trialType === 'image' && imageData.positions) {
+            imagePositionMap[imageData.positions.dysphoric] = 'dysphoric';
+            imagePositionMap[imageData.positions.threat] = 'threat';
+            imagePositionMap[imageData.positions.positive] = 'positive';
+            imagePositionMap[imageData.positions.filler] = 'filler';
+        } else if (trialType === 'filler' && imageData.positions) {
+            imagePositionMap[imageData.positions.filler1] = 'filler1';
+            imagePositionMap[imageData.positions.filler2] = 'filler2';
+            imagePositionMap[imageData.positions.filler3] = 'filler3';
+            imagePositionMap[imageData.positions.filler4] = 'filler4';
+        }
+        
+        // Initialize timing counters
+        Object.values(imagePositionMap).forEach(imageName => {
+            imageTimes[imageName] = 0;
+        });
+        
+        // Calculate time per mouse data point (assuming ~60fps tracking)
+        const timePerPoint = 16.67; // milliseconds
+        
+        // Analyze each mouse data point
+        mouseData.forEach(point => {
+            if (point && typeof point.x === 'number' && typeof point.y === 'number') {
+                // Check which image (if any) the mouse is over
+                Object.entries(imageBounds).forEach(([position, bounds]) => {
+                    const imageName = imagePositionMap[position];
+                    if (imageName && 
+                        point.x >= bounds.left && point.x <= bounds.right &&
+                        point.y >= bounds.top && point.y <= bounds.bottom) {
+                        imageTimes[imageName] += timePerPoint;
+                    }
+                });
+            }
+        });
+        
+        // Round to nearest millisecond
+        Object.keys(imageTimes).forEach(key => {
+            imageTimes[key] = Math.round(imageTimes[key]);
+        });
+        
+        console.log('Image viewing times calculated:', imageTimes);
+        
+        return imageTimes;
+    }
+    
+    /**
      * Get screen quadrant for mouse position
      */
     getQuadrant(x, y) {
@@ -421,7 +529,7 @@ class DataManager {
             }).join(',');
         });
         
-        const csvContent = [csvHeader, ...csvRows].join('\\n');
+        const csvContent = [csvHeader, ...csvRows].join('\n');
         
         // Create and download file
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
@@ -447,7 +555,7 @@ class DataManager {
             return fieldNames.map(field => record[field] || '').join(',');
         });
         
-        const csvContent = [csvHeader, ...csvRows].join('\\n');
+        const csvContent = [csvHeader, ...csvRows].join('\n');
         
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
         const filename = `mouse_data_${this.participantData.participant_id}_3rounds_${timestamp}.csv`;
