@@ -10,14 +10,11 @@ class DataManager {
             session: '001',
             email: '',
             date: new Date().toISOString(),
-            start_time: new Date().toISOString(),
-            browser: navigator.userAgent,
             screen_resolution: `${screen.width}x${screen.height}`,
             viewport_size: `${window.innerWidth}x${window.innerHeight}`,
             device_pixel_ratio: window.devicePixelRatio || 1,
             user_agent: navigator.userAgent,
-            platform: navigator.platform,
-            language: navigator.language
+            platform: navigator.platform
         };
         
         this.trialData = [];
@@ -224,6 +221,17 @@ class DataManager {
             const imageTimes = this.calculateImageViewingTimes(mouseData, imageData, trialInfo.trialType);
             
             // Add image-specific timing data to trial record
+            // Pre-define ALL possible time_on_* columns for consistent CSV structure
+            trialRecord.time_on_dysphoric = 0;
+            trialRecord.time_on_threat = 0;
+            trialRecord.time_on_positive = 0;
+            trialRecord.time_on_filler = 0;
+            trialRecord.time_on_filler_1 = 0;
+            trialRecord.time_on_filler_2 = 0;
+            trialRecord.time_on_filler_3 = 0;
+            trialRecord.time_on_filler_4 = 0;
+            
+            // Populate only the relevant columns based on trial type
             if (trialInfo.trialType === 'image') {
                 trialRecord.time_on_dysphoric = imageTimes.dysphoric || 0;
                 trialRecord.time_on_threat = imageTimes.threat || 0;
@@ -246,6 +254,16 @@ class DataManager {
             trialRecord.time_top_right = 0;
             trialRecord.time_bottom_left = 0;
             trialRecord.time_bottom_right = 0;
+            
+            // Pre-define ALL possible time_on_* columns for consistent CSV structure
+            trialRecord.time_on_dysphoric = 0;
+            trialRecord.time_on_threat = 0;
+            trialRecord.time_on_positive = 0;
+            trialRecord.time_on_filler = 0;
+            trialRecord.time_on_filler_1 = 0;
+            trialRecord.time_on_filler_2 = 0;
+            trialRecord.time_on_filler_3 = 0;
+            trialRecord.time_on_filler_4 = 0;
         }
         
         this.trialData.push(trialRecord);
@@ -597,7 +615,14 @@ class DataManager {
         const participantInfo = {
             participant_id: this.participantData.participant_id,
             email: this.participantData.email,
-            session: this.participantData.session
+            session: this.participantData.session,
+            date: this.participantData.date,
+            experiment_start_time: this.participantData.experiment_start_time,
+            screen_resolution: this.participantData.screen_resolution,
+            viewport_size: this.participantData.viewport_size,
+            device_pixel_ratio: this.participantData.device_pixel_ratio,
+            user_agent: this.participantData.user_agent,
+            platform: this.participantData.platform
         };
         
         // Create CSV header
