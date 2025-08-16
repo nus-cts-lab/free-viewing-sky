@@ -121,11 +121,11 @@ class DataManager {
             
             // Timing information
             trial_start_time: new Date(Date.now() - (performance.now() - trialInfo.startTime)).toISOString(),
+            trial_end_time: new Date().toISOString(),
             trial_duration_ms: timing.duration,
-            relative_start_time_ms: trialInfo.relativeStartTime,
+            trialStart_relative_to_exptStart_ms: trialInfo.relativeStartTime,
             
             // Additional metadata
-            timestamp: new Date().toISOString(),
             viewport_width: window.innerWidth,
             viewport_height: window.innerHeight
         };
@@ -276,7 +276,10 @@ class DataManager {
     /**
      * Record detailed mouse tracking data with round information
      */
-    recordMouseData(mouseData, trialIndex, trialType, roundNumber = 1, roundTrialIndex = 1) {
+    recordMouseData(mouseData, trialIndex, trialType, roundNumber = 1, roundTrialIndex = 1, trialStartTime = null) {
+        // Calculate actual Unix timestamp for trial start
+        const trialStartUnixTime = trialStartTime ? 
+            Date.now() - (performance.now() - trialStartTime) : null;
         if (!mouseData || mouseData.length === 0) {
             console.log('No mouse data to record for trial', trialIndex + 1);
             return;
@@ -325,8 +328,10 @@ class DataManager {
                     mouse_y: Math.round(point.y),
                     
                     // Timing - FIXED to use actual MouseView time
-                    timestamp: point.timestamp || Date.now(),
-                    time_in_trial: point.time || 0,
+                    point_absolute_time: trialStartUnixTime ? 
+                        new Date(trialStartUnixTime + (point.time || 0)).toISOString() :
+                        new Date(point.timestamp || Date.now()).toISOString(),
+                    time_elapsed_since_trialStart_ms: point.time || 0,
                     
                     // Screen quadrant
                     quadrant: this.getQuadrant(point.x, point.y),
@@ -344,7 +349,7 @@ class DataManager {
     }
     
     /**
-     * Calculate time spent in each screen quadrant
+     * Calculate time spent in each screen quadrant using actual timestamps
      */
     calculateQuadrantTimes(mouseData) {
         const quadrantTimes = {
@@ -354,27 +359,72 @@ class DataManager {
             bottomRight: 0
         };
         
-        if (!mouseData || mouseData.length === 0) return quadrantTimes;
+        if (!mouseData || mouseData.length < 2) {
+            console.warn('Insufficient mouse data for quadrant timing calculation');
+            return quadrantTimes;
+        }
         
         const centerX = window.innerWidth / 2;
         const centerY = window.innerHeight / 2;
         
-        // Assuming roughly 60fps mouse tracking, each point represents ~16.67ms
-        const timePerPoint = 16.67; // milliseconds
-        
-        mouseData.forEach(point => {
-            if (point && typeof point.x === 'number' && typeof point.y === 'number') {
-                if (point.x < centerX && point.y < centerY) {
-                    quadrantTimes.topLeft += timePerPoint;
-                } else if (point.x >= centerX && point.y < centerY) {
-                    quadrantTimes.topRight += timePerPoint;
-                } else if (point.x < centerX && point.y >= centerY) {
-                    quadrantTimes.bottomLeft += timePerPoint;
+        // Use actual timestamps to calculate time intervals between points
+        for (let i = 0; i < mouseData.length - 1; i++) {
+            const currentPoint = mouseData[i];
+            const nextPoint = mouseData[i + 1];
+            
+            // Validate current point and timestamps
+            if (currentPoint && nextPoint && 
+                typeof currentPoint.x === 'number' && typeof currentPoint.y === 'number' &&
+                currentPoint.time !== undefined && nextPoint.time !== undefined) {
+                
+                // Calculate actual time interval until next point
+                const timeInterval = nextPoint.time - currentPoint.time;
+                
+                // Only count positive intervals (handle potential timestamp issues)
+                if (timeInterval > 0) {
+                    // Assign time to quadrant based on current position
+                    if (currentPoint.x < centerX && currentPoint.y < centerY) {
+                        quadrantTimes.topLeft += timeInterval;
+                    } else if (currentPoint.x >= centerX && currentPoint.y < centerY) {
+                        quadrantTimes.topRight += timeInterval;
+                    } else if (currentPoint.x < centerX && currentPoint.y >= centerY) {
+                        quadrantTimes.bottomLeft += timeInterval;
+                    } else {
+                        quadrantTimes.bottomRight += timeInterval;
+                    }
                 } else {
-                    quadrantTimes.bottomRight += timePerPoint;
+                    console.warn(`Invalid time interval at point ${i}: ${timeInterval}ms`);
                 }
+            } else {
+                console.warn(`Invalid point data at index ${i}:`, {
+                    currentPoint: currentPoint,
+                    nextPoint: nextPoint,
+                    hasCurrentTime: currentPoint?.time !== undefined,
+                    hasNextTime: nextPoint?.time !== undefined
+                });
             }
-        });
+        }
+        
+        // Calculate total for validation
+        const totalTime = quadrantTimes.topLeft + quadrantTimes.topRight + 
+                         quadrantTimes.bottomLeft + quadrantTimes.bottomRight;
+        
+        // Log timing analysis for debugging
+        console.log('=== QUADRANT TIMING ANALYSIS ===');
+        console.log(`Mouse data points: ${mouseData.length}`);
+        console.log(`Valid intervals calculated: ${Math.round((mouseData.length - 1) * (totalTime / (totalTime || 1)))}`);
+        console.log(`Total calculated time: ${Math.round(totalTime)}ms`);
+        console.log(`Expected trial duration: 15000ms`);
+        console.log(`Timing accuracy: ${totalTime > 0 ? Math.round((totalTime / 15000) * 100) : 0}%`);
+        
+        if (mouseData.length > 1) {
+            const firstTime = mouseData[0]?.time || 0;
+            const lastTime = mouseData[mouseData.length - 1]?.time || 0;
+            const actualTrialDuration = lastTime - firstTime;
+            console.log(`MouseView trial duration: ${Math.round(actualTrialDuration)}ms`);
+            console.log(`Sample rate: ${Math.round(mouseData.length / (actualTrialDuration / 1000))} Hz`);
+        }
+        console.log('=== END TIMING ANALYSIS ===');
         
         // Round to nearest millisecond
         Object.keys(quadrantTimes).forEach(key => {
@@ -448,23 +498,33 @@ class DataManager {
             imageTimes[imageName] = 0;
         });
         
-        // Calculate time per mouse data point (assuming ~60fps tracking)
-        const timePerPoint = 16.67; // milliseconds
-        
-        // Analyze each mouse data point
-        mouseData.forEach(point => {
-            if (point && typeof point.x === 'number' && typeof point.y === 'number') {
-                // Check which image (if any) the mouse is over
-                Object.entries(imageBounds).forEach(([position, bounds]) => {
-                    const imageName = imagePositionMap[position];
-                    if (imageName && 
-                        point.x >= bounds.left && point.x <= bounds.right &&
-                        point.y >= bounds.top && point.y <= bounds.bottom) {
-                        imageTimes[imageName] += timePerPoint;
-                    }
-                });
+        // Use actual timestamps to calculate time intervals (consistent with quadrant calculation)
+        for (let i = 0; i < mouseData.length - 1; i++) {
+            const currentPoint = mouseData[i];
+            const nextPoint = mouseData[i + 1];
+            
+            // Validate current point and timestamps
+            if (currentPoint && nextPoint && 
+                typeof currentPoint.x === 'number' && typeof currentPoint.y === 'number' &&
+                currentPoint.time !== undefined && nextPoint.time !== undefined) {
+                
+                // Calculate actual time interval until next point
+                const timeInterval = nextPoint.time - currentPoint.time;
+                
+                // Only count positive intervals
+                if (timeInterval > 0) {
+                    // Check which image (if any) the mouse is over
+                    Object.entries(imageBounds).forEach(([position, bounds]) => {
+                        const imageName = imagePositionMap[position];
+                        if (imageName && 
+                            currentPoint.x >= bounds.left && currentPoint.x <= bounds.right &&
+                            currentPoint.y >= bounds.top && currentPoint.y <= bounds.bottom) {
+                            imageTimes[imageName] += timeInterval;
+                        }
+                    });
+                }
             }
-        });
+        }
         
         // Round to nearest millisecond
         Object.keys(imageTimes).forEach(key => {

@@ -55,3 +55,6 @@ IMPLEMENTATION_PLAN.md
 test-*.html
 *test*.js
 console-test-*.js
+
+# Issues to fix documentation
+toFix.md

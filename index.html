@@ -217,11 +217,15 @@
                     <p><strong>Data Collection Complete</strong></p>
                     <p>Please click the buttons below to download your data files for analysis.</p>
                 </div>
-                <div id="download-buttons">
-                    <button id="download-trial-data" class="primary-button">📄 Download All Trial Data (CSV)</button>
-                    <button id="download-mouse-data" class="primary-button">🖱️ Download All Mouse Data (CSV)</button>
-                    <button id="download-participant-info" class="primary-button">👤 Download Participant Information (CSV)</button>
-                    <button id="download-trial-heatmaps" class="primary-button">🔥 Download All Heatmaps (ZIP)</button>
+                <div id="download-buttons" style="display: flex; justify-content: space-between; gap: 20px; margin: 20px 0;">
+                    <div style="display: flex; flex-direction: column; gap: 15px; flex: 1;">
+                        <button id="download-trial-data" class="primary-button">📄 Download All Trial Data (CSV)</button>
+                        <button id="download-mouse-data" class="primary-button">🖱️ Download All Mouse Data (CSV)</button>
+                    </div>
+                    <div style="display: flex; flex-direction: column; gap: 15px; flex: 1;">
+                        <button id="download-participant-info" class="primary-button">👤 Download Participant Information (CSV)</button>
+                        <button id="download-trial-heatmaps" class="primary-button">🔥 Download All Heatmaps (ZIP)</button>
+                    </div>
                 </div>
                 <div id="heatmap-progress" style="display: none; margin: 20px 0; padding: 15px; background: rgba(0,0,0,0.1); border-radius: 5px;">
                     <div style="margin-bottom: 10px; font-weight: bold;" id="heatmap-progress-text">Generating heatmaps...</div>
@@ -229,7 +233,9 @@
                         <div id="heatmap-progress-bar" style="width: 0%; height: 100%; background: #4CAF50; transition: width 0.3s;"></div>
                     </div>
                 </div>
-                <button id="restart-experiment" class="secondary-button">Restart Experiment</button>
+                <div style="text-align: center; margin-top: 30px;">
+                    <button id="restart-experiment" class="secondary-button">Restart Experiment</button>
+                </div>
             </div>
         </div>
 

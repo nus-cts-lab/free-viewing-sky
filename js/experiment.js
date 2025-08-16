@@ -946,7 +946,7 @@ class ExperimentController {
         
         // Record trial data BEFORE hiding images (so image bounds are still available)
         this.dataManager.recordTrialData(trialInfo, imageData, mouseData);
-        this.dataManager.recordMouseData(mouseData, this.globalTrialCounter - 1, trialType, this.currentRound, this.roundTrialCounter);
+        this.dataManager.recordMouseData(mouseData, this.globalTrialCounter - 1, trialType, this.currentRound, this.roundTrialCounter, trialInfo.startTime);
         
         // Hide images AFTER recording data
         this.imageManager.hideImages(imageContainer);

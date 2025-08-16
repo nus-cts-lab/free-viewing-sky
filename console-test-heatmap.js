@@ -80,6 +80,7 @@ function injectTestData() {
                 mouse_y: Math.round(y),
                 timestamp: Date.now() + (i * 16),
                 time_in_trial: i * 16,
+                time: i * 16,  // Add 'time' property for new timestamp-based calculations
                 quadrant: dataManager.getQuadrant(x, y)
             });
         }
