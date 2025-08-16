@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Data Collection Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: #f0f0f0;
+        }
+        .test-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .test-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .test-section h3 {
+            margin-top: 0;
+            color: #333;
+        }
+        .button {
+            background: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 14px;
+        }
+        .button:hover {
+            background: #45a049;
+        }
+        .button.secondary {
+            background: #2196F3;
+        }
+        .button.secondary:hover {
+            background: #1976D2;
+        }
+        .test-results {
+            background: #f9f9f9;
+            padding: 15px;
+            border-radius: 4px;
+            margin-top: 10px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .status.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        #mouseview-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            pointer-events: none;
+            z-index: 9999;
+        }
+        .test-image {
+            width: 150px;
+            height: 100px;
+            background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+            margin: 10px;
+            display: inline-block;
+            border-radius: 5px;
+            position: relative;
+        }
+        .test-image::after {
+            content: attr(data-label);
+            position: absolute;
+            bottom: 5px;
+            left: 5px;
+            color: white;
+            font-weight: bold;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.7);
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>🧪 Data Collection Test</h1>
+        <p>This test validates CSV export, image viewing times, and heatmap generation.</p>
+
+        <!-- Test Section 1: Initialize Components -->
+        <div class="test-section">
+            <h3>1. Initialize Test Components</h3>
+            <button class="button" onclick="initializeTest()">Initialize Test</button>
+            <div id="init-status"></div>
+        </div>
+
+        <!-- Test Section 2: MouseView.js API Test -->
+        <div class="test-section">
+            <h3>2. MouseView.js API Test</h3>
+            <button class="button" onclick="testMouseViewAPI()">Test MouseView API</button>
+            <div id="mouseview-status"></div>
+            <div id="mouseview-results" class="test-results"></div>
+        </div>
+
+        <!-- Test Section 3: Data Collection Simulation -->
+        <div class="test-section">
+            <h3>3. Data Collection Simulation</h3>
+            <div id="test-images">
+                <div class="test-image" data-label="Dysphoric" style="background: linear-gradient(45deg, #ff4757, #2f3542);"></div>
+                <div class="test-image" data-label="Threat" style="background: linear-gradient(45deg, #ff3838, #ff4757);"></div>
+                <div class="test-image" data-label="Positive" style="background: linear-gradient(45deg, #7bed9f, #2ed573);"></div>
+                <div class="test-image" data-label="Filler" style="background: linear-gradient(45deg, #5352ed, #3742fa);"></div>
+            </div>
+            <button class="button" onclick="startDataCollection()">Start 5-Second Data Collection</button>
+            <button class="button secondary" onclick="stopDataCollection()">Stop Collection</button>
+            <div id="collection-status"></div>
+            <div id="collection-results" class="test-results"></div>
+        </div>
+
+        <!-- Test Section 4: CSV Export Test -->
+        <div class="test-section">
+            <h3>4. CSV Export Test</h3>
+            <button class="button" onclick="testCSVExport()">Generate & Download Test CSV</button>
+            <div id="csv-status"></div>
+            <div id="csv-results" class="test-results"></div>
+        </div>
+
+        <!-- Test Section 5: Heatmap Test -->
+        <div class="test-section">
+            <h3>5. Heatmap Generation Test</h3>
+            <button class="button" onclick="testHeatmap()">Generate Test Heatmap</button>
+            <button class="button secondary" onclick="clearHeatmap()">Clear Heatmap</button>
+            <div id="heatmap-status"></div>
+        </div>
+    </div>
+
+    <!-- MouseView Overlay -->
+    <canvas id="mouseview-overlay" class="mouseview-overlay"></canvas>
+
+    <!-- Scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://mouseview-docs.netlify.app/MouseView.js" type="module"></script>
+    <script src="js/data-manager.js"></script>
+    <script src="js/image-manager.js"></script>
+
+    <script>
+        // Test variables
+        let dataManager = null;
+        let testMouseData = [];
+        let testStartTime = null;
+
+        // Test initialization
+        function initializeTest() {
+            const statusDiv = document.getElementById('init-status');
+            try {
+                // Initialize DataManager
+                dataManager = new DataManager();
+                dataManager.setParticipantInfo('TEST001', 'TEST');
+                dataManager.startExperiment();
+
+                // Initialize MouseView canvas
+                const canvas = document.getElementById('mouseview-overlay');
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+
+                statusDiv.innerHTML = '<div class="status success">✅ Components initialized successfully</div>';
+                console.log('Test components initialized');
+            } catch (error) {
+                statusDiv.innerHTML = `<div class="status error">❌ Initialization failed: ${error.message}</div>`;
+                console.error('Test initialization failed:', error);
+            }
+        }
+
+        // Test MouseView.js API methods
+        function testMouseViewAPI() {
+            const statusDiv = document.getElementById('mouseview-status');
+            const resultsDiv = document.getElementById('mouseview-results');
+            
+            try {
+                if (typeof mouseview === 'undefined') {
+                    throw new Error('MouseView.js not loaded');
+                }
+
+                let results = 'MouseView.js API Test Results:\n\n';
+                
+                // Test configuration
+                mouseview.params.apertureSize = '15%';
+                mouseview.params.overlayAlpha = 0.8;
+                mouseview.params.overlayColour = 'black';
+                results += `✅ Configuration: apertureSize=${mouseview.params.apertureSize}, alpha=${mouseview.params.overlayAlpha}\n`;
+
+                // Test initialization
+                mouseview.init();
+                results += '✅ mouseview.init() - Success\n';
+
+                // Test event logging
+                mouseview.logEvent('test_event_start');
+                results += '✅ mouseview.logEvent() - Success\n';
+
+                // Test data methods 
+                results += '📝 Note: getData() is for stored localStorage data, not current session\n';
+                
+                // Test current session data access
+                const currentData = mouseview.datalogger?.data || [];
+                results += `✅ mouseview.datalogger.data - Current session array (${currentData.length} items)\n`;
+
+                // Test localStorage methods (may fail if no stored data)
+                try {
+                    const storedData = mouseview.getData() || [];
+                    results += `✅ mouseview.getData() - Stored data array (${storedData.length} items)\n`;
+                } catch (e) {
+                    results += `⚠️ mouseview.getData() - No stored data (${e.message})\n`;
+                }
+
+                mouseview.clearData();
+                results += '✅ mouseview.clearData() - Success\n';
+
+                statusDiv.innerHTML = '<div class="status success">✅ MouseView.js API tests passed</div>';
+                resultsDiv.textContent = results;
+                
+            } catch (error) {
+                statusDiv.innerHTML = `<div class="status error">❌ MouseView.js API test failed: ${error.message}</div>`;
+                resultsDiv.textContent = `Error: ${error.message}\n${error.stack}`;
+                console.error('MouseView API test failed:', error);
+            }
+        }
+
+        // Start data collection simulation
+        function startDataCollection() {
+            const statusDiv = document.getElementById('collection-status');
+            const resultsDiv = document.getElementById('collection-results');
+            
+            try {
+                if (typeof mouseview === 'undefined') {
+                    throw new Error('MouseView.js not loaded - run Initialize Test first');
+                }
+
+                // Configure MouseView
+                mouseview.params.apertureSize = '20%';
+                mouseview.params.overlayAlpha = 0.85;
+                mouseview.init();
+
+                // Log start event
+                mouseview.logEvent('test_trial_start');
+                
+                // Start tracking
+                mouseview.startTracking();
+                testStartTime = performance.now();
+                
+                statusDiv.innerHTML = '<div class="status info">🔵 Data collection started - move your mouse around the test images!</div>';
+                resultsDiv.textContent = 'Collection in progress... Move your mouse around the colored test images above.\n';
+                
+                // Auto-stop after 5 seconds
+                setTimeout(() => {
+                    if (testStartTime) {
+                        stopDataCollection();
+                    }
+                }, 5000);
+                
+            } catch (error) {
+                statusDiv.innerHTML = `<div class="status error">❌ Failed to start data collection: ${error.message}</div>`;
+                console.error('Data collection start failed:', error);
+            }
+        }
+
+        // Stop data collection
+        function stopDataCollection() {
+            const statusDiv = document.getElementById('collection-status');
+            const resultsDiv = document.getElementById('collection-results');
+            
+            try {
+                if (!testStartTime) {
+                    throw new Error('Data collection not running');
+                }
+
+                // Log end event
+                mouseview.logEvent('test_trial_end');
+                
+                // Stop tracking and get current session data
+                mouseview.stopTracking();
+                testMouseData = mouseview.datalogger?.data || [];
+                
+                const duration = performance.now() - testStartTime;
+                testStartTime = null;
+
+                let results = `Data Collection Results:\n`;
+                results += `Duration: ${Math.round(duration)}ms\n`;
+                results += `Mouse data points: ${testMouseData.length}\n`;
+                results += `Sample rate: ${testMouseData.length > 0 ? Math.round(testMouseData.length / (duration/1000)) : 0} Hz\n\n`;
+                
+                if (testMouseData.length > 0) {
+                    results += `First point: x=${testMouseData[0].x}, y=${testMouseData[0].y}\n`;
+                    results += `Last point: x=${testMouseData[testMouseData.length-1].x}, y=${testMouseData[testMouseData.length-1].y}\n`;
+                    
+                    // Check for events in data
+                    const events = testMouseData.filter(point => point.event);
+                    results += `Events logged: ${events.length}\n`;
+                    events.forEach(event => {
+                        results += `  - ${event.event} at ${event.timestamp}\n`;
+                    });
+                }
+
+                statusDiv.innerHTML = '<div class="status success">✅ Data collection completed</div>';
+                resultsDiv.textContent = results;
+                
+                // Clear current session data for next test
+                if (mouseview.datalogger) {
+                    mouseview.datalogger.data = [];
+                }
+                
+            } catch (error) {
+                statusDiv.innerHTML = `<div class="status error">❌ Failed to stop data collection: ${error.message}</div>`;
+                console.error('Data collection stop failed:', error);
+            }
+        }
+
+        // Test CSV export
+        function testCSVExport() {
+            const statusDiv = document.getElementById('csv-status');
+            const resultsDiv = document.getElementById('csv-results');
+            
+            try {
+                if (!dataManager) {
+                    throw new Error('DataManager not initialized - run Initialize Test first');
+                }
+
+                // Create test trial data
+                const testTrialInfo = {
+                    trialIndex: 0,
+                    trialType: 'image',
+                    roundNumber: 1,
+                    roundTrialIndex: 1,
+                    startTime: performance.now(),
+                    relativeStartTime: 0
+                };
+
+                const testImageData = {
+                    dysphoric: 'test/dysphoric_001.jpg',
+                    threat: 'test/threat_001.jpg', 
+                    positive: 'test/positive_001.jpg',
+                    filler: 'test/filler_001.jpg',
+                    positions: {
+                        dysphoric: 'top-left',
+                        threat: 'top-right',
+                        positive: 'bottom-left',
+                        filler: 'bottom-right'
+                    }
+                };
+
+                // Generate synthetic mouse data if none exists
+                const mouseData = testMouseData.length > 0 ? testMouseData : generateSyntheticMouseData();
+
+                // Record test data
+                dataManager.recordTrialData(testTrialInfo, testImageData, mouseData);
+                dataManager.recordMouseData(mouseData, 0, 'image', 1, 1);
+
+                // Test CSV export
+                const trialData = dataManager.getTrialData();
+                const mouseTrackingData = dataManager.getMouseData();
+
+                let results = `CSV Export Test Results:\n\n`;
+                results += `Trial Data Records: ${trialData.length}\n`;
+                results += `Mouse Data Records: ${mouseTrackingData.length}\n\n`;
+
+                if (trialData.length > 0) {
+                    const trial = trialData[0];
+                    results += `Sample Trial Record:\n`;
+                    results += `  - trial_idx: ${trial.trial_idx}\n`;
+                    results += `  - trial_type: ${trial.trial_type}\n`;
+                    results += `  - img_dysphoric: ${trial.img_dysphoric}\n`;
+                    results += `  - time_on_dysphoric: ${trial.time_on_dysphoric}ms\n`;
+                    results += `  - mouse_data_points: ${trial.mouse_data_points}\n\n`;
+                }
+
+                if (mouseTrackingData.length > 0) {
+                    const mousePoint = mouseTrackingData[0];
+                    results += `Sample Mouse Record:\n`;
+                    results += `  - trial_idx: ${mousePoint.trial_idx}\n`;
+                    results += `  - mouse_x: ${mousePoint.mouse_x}\n`;
+                    results += `  - mouse_y: ${mousePoint.mouse_y}\n`;
+                    results += `  - quadrant: ${mousePoint.quadrant}\n\n`;
+                }
+
+                // Export actual CSV files
+                dataManager.exportTrialData();
+                dataManager.exportMouseData();
+
+                statusDiv.innerHTML = '<div class="status success">✅ CSV export completed - check Downloads folder</div>';
+                resultsDiv.textContent = results;
+                
+            } catch (error) {
+                statusDiv.innerHTML = `<div class="status error">❌ CSV export failed: ${error.message}</div>`;
+                resultsDiv.textContent = `Error: ${error.message}\n${error.stack}`;
+                console.error('CSV export test failed:', error);
+            }
+        }
+
+        // Generate synthetic mouse data for testing
+        function generateSyntheticMouseData() {
+            const data = [];
+            const startTime = Date.now();
+            
+            // Simulate 3 seconds of mouse movement at 60fps
+            for (let i = 0; i < 180; i++) {
+                const t = i / 60; // time in seconds
+                const x = 400 + Math.sin(t * 2) * 200 + Math.random() * 50;
+                const y = 300 + Math.cos(t * 1.5) * 150 + Math.random() * 50;
+                
+                data.push({
+                    x: Math.round(x),
+                    y: Math.round(y),
+                    timestamp: startTime + (i * 16.67),
+                    timeInTrial: i * 16.67
+                });
+            }
+            
+            return data;
+        }
+
+        // Test heatmap generation
+        function testHeatmap() {
+            const statusDiv = document.getElementById('heatmap-status');
+            
+            try {
+                if (typeof mouseview === 'undefined') {
+                    throw new Error('MouseView.js not loaded');
+                }
+
+                // Use existing mouse data or generate synthetic data
+                const heatmapData = testMouseData.length > 0 ? testMouseData : generateSyntheticMouseData();
+                
+                if (heatmapData.length === 0) {
+                    throw new Error('No mouse data available for heatmap');
+                }
+
+                // Test heatmap plotting (if available in MouseView.js)
+                if (typeof mouseview.plotHeatMap === 'function') {
+                    mouseview.plotHeatMap();
+                    statusDiv.innerHTML = '<div class="status success">✅ Heatmap generated successfully</div>';
+                } else {
+                    statusDiv.innerHTML = '<div class="status info">ℹ️ Heatmap function not available in current MouseView.js version</div>';
+                }
+                
+            } catch (error) {
+                statusDiv.innerHTML = `<div class="status error">❌ Heatmap generation failed: ${error.message}</div>`;
+                console.error('Heatmap test failed:', error);
+            }
+        }
+
+        // Clear heatmap
+        function clearHeatmap() {
+            const statusDiv = document.getElementById('heatmap-status');
+            
+            try {
+                if (typeof mouseview !== 'undefined' && typeof mouseview.clearHeatMap === 'function') {
+                    mouseview.clearHeatMap();
+                    statusDiv.innerHTML = '<div class="status info">ℹ️ Heatmap cleared</div>';
+                } else {
+                    statusDiv.innerHTML = '<div class="status info">ℹ️ Clear heatmap function not available</div>';
+                }
+            } catch (error) {
+                statusDiv.innerHTML = `<div class="status error">❌ Failed to clear heatmap: ${error.message}</div>`;
+                console.error('Clear heatmap failed:', error);
+            }
+        }
+
+        // Initialize when page loads
+        window.addEventListener('load', () => {
+            console.log('Data Collection Test loaded');
+            
+            // Set up canvas for MouseView
+            const canvas = document.getElementById('mouseview-overlay');
+            if (canvas) {
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+                
+                window.addEventListener('resize', () => {
+                    canvas.width = window.innerWidth;
+                    canvas.height = window.innerHeight;
+                });
+            }
+        });
+    </script>
+</body>
+</html>

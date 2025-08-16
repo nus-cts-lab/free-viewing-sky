@@ -172,11 +172,13 @@ class PracticeManager {
                     // Stop tracking (this logs to console but doesn't return data)
                     mouseview.stopTracking();
                     
-                    // Get the actual data using proper API method
-                    mouseData = mouseview.getData() || [];
+                    // Get current session data directly (not stored localStorage data)
+                    mouseData = mouseview.datalogger?.data || [];
                     
                     // Clear data for next trial (to avoid accumulation)
-                    mouseview.clearData();
+                    if (mouseview.datalogger) {
+                        mouseview.datalogger.data = [];
+                    }
                 }
             } catch (error) {
                 console.error('Error stopping practice tracking:', error);

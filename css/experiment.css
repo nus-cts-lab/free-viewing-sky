@@ -5,6 +5,18 @@
     box-sizing: border-box;
 }
 
+/* Aggressive input reset to prevent browser defaults */
+input[type="email"] {
+    -webkit-appearance: none !important;
+    -moz-appearance: none !important;
+    appearance: none !important;
+    background: none !important;
+    border: none !important;
+    font: inherit !important;
+    color: inherit !important;
+    outline: none !important;
+}
+
 /* CSS Custom Properties for Dynamic Positioning */
 :root {
     --dynamic-image-width: 380px;
@@ -136,7 +148,7 @@ label {
     color: #fff;
 }
 
-input[type="text"] {
+input[type="text"], input[type="email"] {
     width: 100%;
     padding: 10px;
     font-size: 1.1em;
@@ -144,11 +156,40 @@ input[type="text"] {
     border-radius: 5px;
     background-color: #333;
     color: #fff;
+    box-sizing: border-box;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
 }
 
-input[type="text"]:focus {
+input[type="text"]:focus, input[type="email"]:focus {
     outline: none;
     border-color: #4CAF50;
+}
+
+/* Additional specific styling for email input to ensure consistency */
+#participant-email {
+    width: 100% !important;
+    padding: 10px !important;
+    font-size: 1.1em !important;
+    border: 2px solid #666 !important;
+    border-radius: 5px !important;
+    background-color: #333 !important;
+    color: #fff !important;
+    box-sizing: border-box !important;
+    -webkit-appearance: none !important;
+    -moz-appearance: none !important;
+    appearance: none !important;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important;
+    line-height: 1.4 !important;
+    min-height: 44px !important;
+}
+
+#participant-email:focus {
+    outline: none !important;
+    border-color: #4CAF50 !important;
+    background-color: #333 !important;
+    color: #fff !important;
 }
 
 /* Calibration Screen */
@@ -543,4 +584,31 @@ input[type="password"]:focus {
 
 .button-group button {
     min-width: 120px;
+}
+
+/* Final override for email input consistency - placed at end to ensure precedence */
+form#participant-form input[type="email"]#participant-email {
+    width: 100% !important;
+    padding: 10px !important;
+    font-size: 1.1em !important;
+    border: 2px solid #666 !important;
+    border-radius: 5px !important;
+    background-color: #333 !important;
+    color: #fff !important;
+    box-sizing: border-box !important;
+    -webkit-appearance: none !important;
+    -moz-appearance: none !important;
+    appearance: none !important;
+    font-family: inherit !important;
+    line-height: normal !important;
+    height: auto !important;
+    min-height: 44px !important;
+    max-width: none !important;
+}
+
+form#participant-form input[type="email"]#participant-email:focus {
+    outline: none !important;
+    border-color: #4CAF50 !important;
+    background-color: #333 !important;
+    color: #fff !important;
 }

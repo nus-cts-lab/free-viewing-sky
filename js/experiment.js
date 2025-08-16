@@ -121,6 +121,7 @@ class ExperimentController {
         // Download buttons
         const downloadTrialBtn = document.getElementById('download-trial-data');
         const downloadMouseBtn = document.getElementById('download-mouse-data');
+        const downloadParticipantBtn = document.getElementById('download-participant-info');
         const downloadTrialHeatmapsBtn = document.getElementById('download-trial-heatmaps');
         const restartBtn = document.getElementById('restart-experiment');
         
@@ -129,6 +130,9 @@ class ExperimentController {
         }
         if (downloadMouseBtn) {
             downloadMouseBtn.addEventListener('click', () => this.dataManager.exportMouseData());
+        }
+        if (downloadParticipantBtn) {
+            downloadParticipantBtn.addEventListener('click', () => this.dataManager.exportParticipantInfo());
         }
         if (downloadTrialHeatmapsBtn) {
             downloadTrialHeatmapsBtn.addEventListener('click', () => this.generateTrialHeatmaps());
@@ -208,6 +212,7 @@ class ExperimentController {
         event.preventDefault();
         
         const participantId = document.getElementById('participant-id').value;
+        const participantEmail = document.getElementById('participant-email').value;
         const session = document.getElementById('session').value;
         
         if (!participantId.trim()) {
@@ -215,8 +220,13 @@ class ExperimentController {
             return;
         }
         
+        if (!participantEmail.trim()) {
+            alert('Please enter an email address');
+            return;
+        }
+        
         // Set participant data
-        this.dataManager.setParticipantInfo(participantId, session);
+        this.dataManager.setParticipantInfo(participantId, session, participantEmail);
         
         // Start loading images
         await this.loadImages();
@@ -856,6 +866,15 @@ class ExperimentController {
         trialInfo.roundNumber = this.currentRound;
         trialInfo.roundTrialIndex = this.roundTrialCounter;
         
+        // Log trial start event
+        try {
+            if (typeof mouseview !== 'undefined') {
+                mouseview.logEvent(`trial_start_R${this.currentRound}T${this.roundTrialCounter}_${trialType}`);
+            }
+        } catch (error) {
+            console.log('Event logging not available:', error);
+        }
+        
         // Get images for this trial using new selection system
         let imageData;
         try {
@@ -880,6 +899,14 @@ class ExperimentController {
         const imageContainer = document.getElementById('image-container');
         try {
             this.imageManager.displayImages(imageData, imageContainer);
+            
+            // Log images displayed event with image categories
+            if (typeof mouseview !== 'undefined') {
+                const imageList = trialType === 'image' 
+                    ? `${imageData.dysphoric},${imageData.threat},${imageData.positive},${imageData.filler}`
+                    : `${imageData.filler1},${imageData.filler2},${imageData.filler3},${imageData.filler4}`;
+                mouseview.logEvent(`images_displayed_${imageList}`);
+            }
         } catch (error) {
             console.error('Error displaying images:', error);
         }
@@ -893,11 +920,21 @@ class ExperimentController {
             this.hideTrialCountdown();
         }
         
-        // Stop tracking and collect mouse data
+        // Log trial end event before stopping tracking
+        try {
+            if (typeof mouseview !== 'undefined') {
+                mouseview.logEvent(`trial_end_R${this.currentRound}T${this.roundTrialCounter}`);
+            }
+        } catch (error) {
+            console.log('Event logging not available:', error);
+        }
+        
+        // Stop tracking and collect current session mouse data
         let mouseData = [];
         try {
             if (typeof mouseview !== 'undefined') {
                 mouseview.stopTracking();
+                // Access current session data directly (not stored localStorage data)
                 mouseData = mouseview.datalogger?.data || [];
                 if (mouseview.datalogger) {
                     mouseview.datalogger.data = []; // Clear for next trial

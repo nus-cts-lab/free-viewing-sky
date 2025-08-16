@@ -8,6 +8,7 @@ class DataManager {
         this.participantData = {
             participant_id: this.generateParticipantId(),
             session: '001',
+            email: '',
             date: new Date().toISOString(),
             start_time: new Date().toISOString(),
             browser: navigator.userAgent,
@@ -32,10 +33,11 @@ class DataManager {
         return Math.floor(Math.random() * 999999).toString().padStart(6, '0');
     }
     
-    setParticipantInfo(participantId, session = '001') {
+    setParticipantInfo(participantId, session = '001', email = '') {
         this.participantData.participant_id = participantId;
         this.participantData.session = session;
-        console.log('Participant info updated:', participantId, session);
+        this.participantData.email = email;
+        console.log('Participant info updated:', participantId, email, session);
     }
     
     startExperiment() {
@@ -533,7 +535,7 @@ class DataManager {
         
         // Create and download file
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-        const filename = `trial_data_${this.participantData.participant_id}_3rounds_${timestamp}.csv`;
+        const filename = `trial_data_ppt${this.participantData.participant_id}_s${this.participantData.session}_${timestamp}.csv`;
         
         this.downloadCSV(csvContent, filename);
         console.log(`Trial data exported: ${filename}`);
@@ -558,19 +560,51 @@ class DataManager {
         const csvContent = [csvHeader, ...csvRows].join('\n');
         
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-        const filename = `mouse_data_${this.participantData.participant_id}_3rounds_${timestamp}.csv`;
+        const filename = `mouse_data_ppt${this.participantData.participant_id}_s${this.participantData.session}_${timestamp}.csv`;
         
         this.downloadCSV(csvContent, filename);
         console.log(`Mouse tracking data exported: ${filename}`);
     }
     
     /**
-     * Export all data (both trial and mouse data)
+     * Export participant information as CSV
+     */
+    exportParticipantInfo() {
+        const participantInfo = {
+            participant_id: this.participantData.participant_id,
+            email: this.participantData.email,
+            session: this.participantData.session
+        };
+        
+        // Create CSV header
+        const csvHeader = Object.keys(participantInfo).join(',');
+        
+        // Create CSV row
+        const csvRow = Object.values(participantInfo).map(value => {
+            // Handle string values that might contain commas
+            if (typeof value === 'string' && value.includes(',')) {
+                return `"${value}"`;
+            }
+            return value || '';
+        }).join(',');
+        
+        const csvContent = [csvHeader, csvRow].join('\n');
+        
+        // Create and download file
+        const filename = `participant_${this.participantData.participant_id}_information.csv`;
+        
+        this.downloadCSV(csvContent, filename);
+        console.log(`Participant information exported: ${filename}`);
+    }
+    
+    /**
+     * Export all data (trial, mouse data, and participant information)
      */
     exportAllData() {
         console.log('Exporting all 3-round experiment data...');
         this.exportTrialData();
         this.exportMouseData();
+        this.exportParticipantInfo();
         
         // Log summary
         const summary = this.getSummaryStats();
@@ -596,30 +630,63 @@ class DataManager {
     }
     
     /**
-     * Generate trial heatmaps for all trials (placeholder for heatmap functionality)
+     * Generate trial heatmaps for all trials with actual file generation
      */
     async generateAllTrialHeatmaps(progressCallback) {
         console.log('Starting heatmap generation for all 3 rounds...');
         
+        if (typeof JSZip === 'undefined') {
+            throw new Error('JSZip library not loaded - cannot generate heatmap ZIP');
+        }
+        
+        
         const totalTrials = this.trialData.length;
-        let generated = 0;
+        const totalHeatmaps = totalTrials * 2; // 2 styles per trial
         const results = { success: 0, errors: 0 };
+        const zip = new JSZip();
+        
+        // Create timestamp for filename
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
         
         for (let i = 0; i < totalTrials; i++) {
             const trial = this.trialData[i];
             
             try {
-                if (progressCallback) {
-                    progressCallback(i + 1, totalTrials, `Generating heatmap for trial ${trial.trial_idx} (Round ${trial.round_number})`);
+                // Get mouse data for this trial
+                const mouseData = this.getMouseDataForTrial(trial.trial_idx);
+                
+                if (mouseData.length === 0) {
+                    console.warn(`No mouse data for trial ${trial.trial_idx}, creating empty heatmaps`);
                 }
                 
-                // Simulate heatmap generation delay
-                await new Promise(resolve => setTimeout(resolve, 100));
+                // Generate BOTH styles of heatmaps
+                const baseFilename = `trial_R${trial.round_number}T${String(trial.round_trial_idx).padStart(2, '0')}_${trial.trial_type}`;
+                const roundFolder = `Round_${trial.round_number}`;
                 
-                // Here you would implement actual heatmap generation logic
-                // For now, we'll just simulate success
+                // 1. Generate Custom Style heatmap
+                if (progressCallback) {
+                    progressCallback((i * 2) + 1, totalHeatmaps, `Generating custom heatmap for trial ${trial.trial_idx} (Round ${trial.round_number})`);
+                }
+                
+                const customHeatmapBlob = await this.generateTrialHeatmapImage(trial, mouseData);
+                const customFilename = `${roundFolder}/Grid-based_Density_Calculation/${baseFilename}_custom.png`;
+                zip.file(customFilename, customHeatmapBlob);
                 results.success++;
-                generated++;
+                
+                // 2. Generate MouseView Style heatmap
+                if (progressCallback) {
+                    progressCallback((i * 2) + 2, totalHeatmaps, `Generating Simpleheat.js heatmap for trial ${trial.trial_idx} (Round ${trial.round_number})`);
+                }
+                
+                const mouseViewHeatmapBlob = await this.generateTrialHeatmapImageMouseViewStyle(trial, mouseData);
+                const mouseViewFilename = `${roundFolder}/Simpleheat.js_Library/${baseFilename}_mouseview.png`;
+                zip.file(mouseViewFilename, mouseViewHeatmapBlob);
+                results.success++;
+                
+                // Small delay to prevent browser blocking
+                if (i % 5 === 0) {
+                    await new Promise(resolve => setTimeout(resolve, 50));
+                }
                 
             } catch (error) {
                 console.error(`Error generating heatmap for trial ${trial.trial_idx}:`, error);
@@ -627,8 +694,273 @@ class DataManager {
             }
         }
         
+        // Generate and download ZIP if any heatmaps were created
+        if (results.success > 0) {
+            try {
+                console.log('Generating ZIP file...');
+                const zipBlob = await zip.generateAsync({
+                    type: 'blob',
+                    compression: 'DEFLATE',
+                    compressionOptions: { level: 6 }
+                });
+                
+                // Trigger download
+                const filename = `trial_heatmaps_ppt${this.participantData.participant_id}_${timestamp}.zip`;
+                this.downloadBlob(zipBlob, filename);
+                
+                console.log(`Heatmap ZIP download triggered: ${filename}`);
+            } catch (error) {
+                console.error('Error creating ZIP file:', error);
+                results.errors++;
+            }
+        }
+        
         console.log(`Heatmap generation complete: ${results.success} successful, ${results.errors} errors`);
         return results;
+    }
+    
+    /**
+     * Get mouse data for a specific trial
+     */
+    getMouseDataForTrial(trialIdx) {
+        return this.mouseTrackingData.filter(point => point.trial_idx === trialIdx);
+    }
+    
+    /**
+     * Generate heatmap image for a single trial
+     */
+    async generateTrialHeatmapImage(trial, mouseData) {
+        // Create canvas for heatmap generation
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Set canvas size to trial viewport if stored, otherwise current viewport
+        canvas.width = trial.viewport_width || window.innerWidth;
+        canvas.height = trial.viewport_height || window.innerHeight;
+        
+        // Draw black background to match experiment
+        ctx.fillStyle = '#000000';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        // Draw title and trial info
+        this.drawTrialInfo(ctx, trial, canvas.width, canvas.height);
+        
+        // Draw heatmap if we have mouse data
+        if (mouseData && mouseData.length > 0) {
+            this.drawHeatPoints(ctx, mouseData);
+        } else {
+            // Draw "No Data" message
+            ctx.fillStyle = '#666666';
+            ctx.font = '24px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('No mouse tracking data available', canvas.width / 2, canvas.height / 2);
+        }
+        
+        // Convert canvas to blob
+        return new Promise((resolve, reject) => {
+            canvas.toBlob((blob) => {
+                if (blob) {
+                    resolve(blob);
+                } else {
+                    reject(new Error('Failed to generate canvas blob'));
+                }
+            }, 'image/png', 0.8);
+        });
+    }
+    
+    /**
+     * Generate MouseView-style heatmap image for a single trial
+     */
+    async generateTrialHeatmapImageMouseViewStyle(trial, mouseData) {
+        // Create canvas for heatmap generation
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Set canvas size to trial viewport if stored, otherwise current viewport
+        canvas.width = trial.viewport_width || window.innerWidth;
+        canvas.height = trial.viewport_height || window.innerHeight;
+        
+        // Draw black background to match experiment
+        ctx.fillStyle = '#000000';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        // Generate MouseView-style heatmap if we have mouse data
+        if (mouseData && mouseData.length > 0) {
+            await this.drawMouseViewStyleHeatmap(canvas, mouseData);
+        } else {
+            // Draw "No Data" message
+            ctx.fillStyle = '#666666';
+            ctx.font = '24px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('No mouse tracking data available', canvas.width / 2, canvas.height / 2);
+        }
+        
+        // Add trial info overlay on top (Option B)
+        this.drawTrialInfo(ctx, trial, canvas.width, canvas.height);
+        
+        // Convert canvas to blob
+        return new Promise((resolve, reject) => {
+            canvas.toBlob((blob) => {
+                if (blob) {
+                    resolve(blob);
+                } else {
+                    reject(new Error('Failed to generate MouseView-style canvas blob'));
+                }
+            }, 'image/png', 0.8);
+        });
+    }
+    
+    /**
+     * Draw MouseView-style heatmap using simpleheat.js
+     */
+    async drawMouseViewStyleHeatmap(canvas, mouseData) {
+        return new Promise((resolve, reject) => {
+            try {
+                // Check if simpleheat is available
+                if (typeof simpleheat === 'undefined') {
+                    throw new Error('simpleheat library not loaded');
+                }
+                
+                // Format data for simpleheat: [[x,y,intensity], ...]
+                const formattedData = mouseData.map(point => [
+                    point.mouse_x, 
+                    point.mouse_y, 
+                    1 // Fixed intensity like MouseView does
+                ]);
+                
+                // Create simpleheat instance
+                const heat = simpleheat(canvas);
+                heat.data(formattedData);
+                heat.radius(20, 90); // MouseView's exact parameters: 20px base, 90px blur
+                heat.draw();
+                
+                // simpleheat draws synchronously, so we can resolve immediately
+                resolve();
+                
+            } catch (error) {
+                reject(error);
+            }
+        });
+    }
+    
+    /**
+     * Draw trial information on heatmap
+     */
+    drawTrialInfo(ctx, trial, width, height) {
+        // Set text style
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '16px Arial';
+        ctx.textAlign = 'left';
+        
+        // Draw trial information in top-left corner
+        const info = [
+            `Trial: ${trial.trial_idx} (Round ${trial.round_number}, Trial ${trial.round_trial_idx})`,
+            `Type: ${trial.trial_type}`,
+            `Duration: ${Math.round(trial.trial_duration_ms / 1000)}s`
+        ];
+        
+        // Draw background box for text
+        const padding = 10;
+        const lineHeight = 20;
+        const boxHeight = info.length * lineHeight + padding * 2;
+        const boxWidth = 350;
+        
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+        ctx.fillRect(10, 10, boxWidth, boxHeight);
+        
+        // Draw text
+        ctx.fillStyle = '#ffffff';
+        info.forEach((line, index) => {
+            ctx.fillText(line, 20, 30 + (index * lineHeight));
+        });
+        
+        // Draw timestamp in bottom-right
+        ctx.textAlign = 'right';
+        ctx.font = '12px Arial';
+        ctx.fillStyle = '#888888';
+        const timestamp = new Date().toISOString().slice(0, 19).replace('T', ' ');
+        ctx.fillText(`Generated: ${timestamp}`, width - 20, height - 20);
+    }
+    
+    /**
+     * Draw heat points on canvas using mouse tracking data
+     */
+    drawHeatPoints(ctx, mouseData) {
+        // Calculate heat intensity based on point density
+        const intensityMap = new Map();
+        const gridSize = 20; // 20px grid for heat calculation
+        
+        // Count points in each grid cell
+        mouseData.forEach(point => {
+            const gridX = Math.floor(point.mouse_x / gridSize);
+            const gridY = Math.floor(point.mouse_y / gridSize);
+            const key = `${gridX},${gridY}`;
+            intensityMap.set(key, (intensityMap.get(key) || 0) + 1);
+        });
+        
+        // Find max intensity for normalization
+        const maxIntensity = intensityMap.size > 0 ? Math.max(...intensityMap.values()) : 1;
+        
+        // Draw heat points
+        mouseData.forEach((point) => {
+            const gridX = Math.floor(point.mouse_x / gridSize);
+            const gridY = Math.floor(point.mouse_y / gridSize);
+            const key = `${gridX},${gridY}`;
+            const intensity = intensityMap.get(key) / maxIntensity;
+            
+            // Create radial gradient for heat effect
+            const radius = 15 + (intensity * 25); // Radius based on intensity
+            const gradient = ctx.createRadialGradient(
+                point.mouse_x, point.mouse_y, 0,
+                point.mouse_x, point.mouse_y, radius
+            );
+            
+            // Color based on intensity (blue -> red -> white)
+            const alpha = 0.1 + (intensity * 0.4); // Base transparency
+            if (intensity < 0.3) {
+                // Cool areas - blue
+                gradient.addColorStop(0, `rgba(0, 100, 255, ${alpha})`);
+                gradient.addColorStop(1, `rgba(0, 50, 255, 0)`);
+            } else if (intensity < 0.7) {
+                // Medium areas - red
+                gradient.addColorStop(0, `rgba(255, 100, 0, ${alpha})`);
+                gradient.addColorStop(1, `rgba(255, 0, 0, 0)`);
+            } else {
+                // Hot areas - white/yellow
+                gradient.addColorStop(0, `rgba(255, 255, 255, ${alpha})`);
+                gradient.addColorStop(0.5, `rgba(255, 255, 0, ${alpha * 0.7})`);
+                gradient.addColorStop(1, `rgba(255, 100, 0, 0)`);
+            }
+            
+            // Draw heat point
+            ctx.globalCompositeOperation = 'screen'; // Additive blending
+            ctx.fillStyle = gradient;
+            ctx.beginPath();
+            ctx.arc(point.mouse_x, point.mouse_y, radius, 0, 2 * Math.PI);
+            ctx.fill();
+        });
+        
+        // Reset composite operation
+        ctx.globalCompositeOperation = 'source-over';
+    }
+    
+    /**
+     * Download blob as file
+     */
+    downloadBlob(blob, filename) {
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        
+        link.href = url;
+        link.download = filename;
+        link.style.display = 'none';
+        
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        // Clean up object URL
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
     }
 }
 

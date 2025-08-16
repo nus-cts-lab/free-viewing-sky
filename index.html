@@ -49,6 +49,15 @@
                         <input type="text" id="participant-id" name="participant-id" required>
                     </div>
                     <div class="form-group">
+                        <label for="participant-email">Email:</label>
+                        <input type="email" id="participant-email" name="participant-email" required 
+                               style="width: 100% !important; padding: 10px !important; font-size: 1.1em !important; 
+                                      border: 2px solid #666 !important; border-radius: 5px !important; 
+                                      background-color: #333 !important; color: #fff !important; 
+                                      box-sizing: border-box !important; -webkit-appearance: none !important; 
+                                      -moz-appearance: none !important; appearance: none !important;">
+                    </div>
+                    <div class="form-group">
                         <label for="session">Session:</label>
                         <input type="text" id="session" name="session" value="001" required>
                     </div>
@@ -103,14 +112,12 @@
                 <h2>Round 2 Instructions</h2>
                 <div class="instructions">
                     <p>You're about to begin <strong>Round 2 of 3</strong>.</p>
-                    
-                    <p>This round works exactly like Round 1:</p>
-                    <ul>
-                        <li>Use your mouse cursor as a "spotlight" to explore images</li>
-                        <li>Four images will appear in each trial</li>
-                        <li>Move naturally to look at what interests you</li>
-                        <li>Each trial lasts 15 seconds</li>
-                    </ul>
+
+                    <p><strong>Reminder of the task:</strong></p>
+                    <p>1) Use your mouse cursor as a "spotlight" to explore the images</p>
+                    <p>2) Each trial shows 4 images in the corners of the screen</p>
+                    <p>3) Move your mouse naturally to look at whatever interests you</p>
+                    <p>4) Each trial lasts 15 seconds and advances automatically</p>
                     
                     <p>Click the button below when you're ready to start.</p>
                 </div>
@@ -213,6 +220,7 @@
                 <div id="download-buttons">
                     <button id="download-trial-data" class="primary-button">📄 Download All Trial Data (CSV)</button>
                     <button id="download-mouse-data" class="primary-button">🖱️ Download All Mouse Data (CSV)</button>
+                    <button id="download-participant-info" class="primary-button">👤 Download Participant Information (CSV)</button>
                     <button id="download-trial-heatmaps" class="primary-button">🔥 Download All Heatmaps (ZIP)</button>
                 </div>
                 <div id="heatmap-progress" style="display: none; margin: 20px 0; padding: 15px; background: rgba(0,0,0,0.1); border-radius: 5px;">
@@ -243,6 +251,8 @@
     <!-- Scripts -->
     <!-- JSZip library for creating ZIP files -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <!-- simpleheat.js library for MouseView-style heatmaps -->
+    <script src="https://cdn.jsdelivr.net/npm/simpleheat@0.4.0/simpleheat.min.js"></script>
     <!-- Official MouseView.js library -->
     <script src="https://mouseview-docs.netlify.app/MouseView.js" type="module"></script>
     <!-- Your custom scripts -->

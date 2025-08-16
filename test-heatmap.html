@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Heatmap Generation Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #222;
+            color: #fff;
+            padding: 20px;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #444;
+            border-radius: 8px;
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px 0;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        .status {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .status.success {
+            background: rgba(76, 175, 80, 0.2);
+            border: 1px solid #4CAF50;
+        }
+        .status.error {
+            background: rgba(244, 67, 54, 0.2);
+            border: 1px solid #f44336;
+        }
+        .status.info {
+            background: rgba(33, 150, 243, 0.2);
+            border: 1px solid #2196F3;
+        }
+    </style>
+</head>
+<body>
+    <h1>Heatmap Generation Test</h1>
+    
+    <div class="test-section">
+        <h3>1. Test Heatmap Generation</h3>
+        <button onclick="testHeatmapGeneration()">Generate Test Heatmap</button>
+        <div id="heatmap-status"></div>
+    </div>
+
+    <!-- Include JSZip library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    
+    <!-- Include simpleheat library for MouseView-style heatmaps -->
+    <script src="https://cdn.jsdelivr.net/npm/simpleheat@0.4.0/simpleheat.min.js"></script>
+    
+    <!-- Include DataManager -->
+    <script src="js/data-manager.js"></script>
+    
+    <script>
+        // Create test instance
+        let dataManager = null;
+        
+        function initializeTest() {
+            try {
+                dataManager = new DataManager();
+                dataManager.setParticipantInfo('TEST123', '001', 'test@example.com');
+                
+                // Create some test trial data
+                const testTrial = {
+                    trial_idx: 1,
+                    round_number: 1,
+                    round_trial_idx: 1,
+                    trial_type: 'image',
+                    trial_duration_ms: 15000,
+                    mouse_data_points: 100
+                };
+                
+                dataManager.trialData.push(testTrial);
+                
+                // Create some test mouse data
+                const testMouseData = [];
+                for (let i = 0; i < 100; i++) {
+                    testMouseData.push({
+                        trial_idx: 1,
+                        mouse_x: Math.random() * window.innerWidth,
+                        mouse_y: Math.random() * window.innerHeight,
+                        timestamp: Date.now() + (i * 16)
+                    });
+                }
+                
+                dataManager.mouseTrackingData = testMouseData;
+                
+                console.log('Test data initialized:', {
+                    trials: dataManager.trialData.length,
+                    mousePoints: dataManager.mouseTrackingData.length
+                });
+                
+            } catch (error) {
+                console.error('Failed to initialize test:', error);
+            }
+        }
+        
+        async function testHeatmapGeneration() {
+            const statusDiv = document.getElementById('heatmap-status');
+            
+            try {
+                if (!dataManager) {
+                    initializeTest();
+                }
+                
+                statusDiv.innerHTML = '<div class="status info">🔄 Generating test heatmap...</div>';
+                
+                // Test the heatmap generation
+                const result = await dataManager.generateAllTrialHeatmaps((current, total, message) => {
+                    statusDiv.innerHTML = `<div class="status info">🔄 ${message || `Progress: ${current}/${total}`}</div>`;
+                });
+                
+                if (result.success > 0) {
+                    statusDiv.innerHTML = `<div class="status success">✅ Successfully generated ${result.success} heatmap(s)! ZIP file should have downloaded.</div>`;
+                } else {
+                    statusDiv.innerHTML = `<div class="status error">❌ No heatmaps generated. Errors: ${result.errors}</div>`;
+                }
+                
+                console.log('Heatmap generation result:', result);
+                
+            } catch (error) {
+                statusDiv.innerHTML = `<div class="status error">❌ Error: ${error.message}</div>`;
+                console.error('Heatmap generation failed:', error);
+            }
+        }
+        
+        // Initialize on page load
+        window.addEventListener('load', () => {
+            console.log('Page loaded, initializing test...');
+            initializeTest();
+        });
+    </script>
+</body>
+</html>
